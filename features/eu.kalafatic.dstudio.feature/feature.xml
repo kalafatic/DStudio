@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+      id="eu.kalafatic.dstudio.feature"
+      label="DStudio Feature"
+      version="2.6.11.qualifier"
+      provider-name="Kalafatic">
+
+   <description url="http://www.example.com/description">
+      DStudio - Darwin Studio: professional Eclipse RCP WYSIWYG IDE and headless Harness Platform.
+   </description>
+
+   <copyright>
+      (c) Kalafatic
+   </copyright>
+
+   <license url="http://www.apache.org/licenses/LICENSE-2.0">
+      Apache License 2.0
+   </license>
+
+   <plugin
+         id="eu.kalafatic.dstudio.core"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+   <plugin
+         id="eu.kalafatic.dstudio.infrastructure"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+   <plugin
+         id="eu.kalafatic.dstudio.harness"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+   <plugin
+         id="eu.kalafatic.dstudio.teip"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+   <plugin
+         id="eu.kalafatic.dstudio.application"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+   <plugin
+         id="eu.kalafatic.dstudio.ui"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+</feature>

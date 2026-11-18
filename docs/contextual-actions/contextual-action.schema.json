@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://kalafatic.eu/contracts/contextual-action/1.0/action-descriptor",
+  "title": "Darwin Family Contextual Action Descriptor",
+  "contractVersion": "1.0",
+  "type": "object",
+  "required": ["contractVersion", "actionId", "label", "group", "contextTypes"],
+  "properties": {
+    "contractVersion": { "const": "1.0" },
+    "actionId": {
+      "type": "string",
+      "pattern": "^eu\\.kalafatic\\.contextual\\.[a-z0-9-]+\\.[a-z0-9-]+$"
+    },
+    "label": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "group": { "enum": ["selection", "configuration", "lifecycle", "inspection", "danger"] },
+    "contextTypes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "harness-registry", "harness", "provider-registry", "provider", "model",
+          "agent-registry", "agent", "session", "task", "execution", "project",
+          "repository", "workspace", "server", "endpoint", "configuration",
+          "artifact", "log", "review"
+        ]
+      }
+    },
+    "requiredCapabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "confirmation": { "enum": ["NONE", "CONFIRM", "DANGEROUS"], "default": "NONE" },
+    "dangerous": { "type": "boolean", "default": false }
+  },
+  "definitions": {
+    "contextSelection": {
+      "type": "object",
+      "required": ["contractVersion", "application", "surface", "objectType"],
+      "properties": {
+        "contractVersion": { "const": "1.0" },
+        "application": { "enum": ["EVO", "TRYST", "DCODE", "DSTUDIO"] },
+        "surface": { "enum": ["RCP", "WEB"] },
+        "objectType": { "$ref": "#/properties/contextTypes/items" },
+        "objectId": { "type": "string" },
+        "objectLabel": { "type": "string" },
+        "objectState": { "type": "object" },
+        "multiSelect": { "type": "boolean", "default": false },
+        "projectId": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "harnessId": { "type": "string" },
+        "providerId": { "type": "string" },
+        "modelId": { "type": "string" },
+        "agentId": { "type": "string" },
+        "capabilities": { "type": "array", "items": { "type": "string" } },
+        "permissions": { "type": "array", "items": { "type": "string" } },
+        "user": { "type": "string" }
+      }
+    },
+    "resolvedAction": {
+      "type": "object",
+      "required": ["descriptor", "enabled"],
+      "properties": {
+        "descriptor": { "$ref": "#" },
+        "enabled": { "type": "boolean" },
+        "disabledReason": { "type": "string" }
+      }
+    },
+    "executionResult": {
+      "type": "object",
+      "required": ["ok", "actionId"],
+      "properties": {
+        "ok": { "type": "boolean" },
+        "actionId": { "type": "string" },
+        "error": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    }
+  }
+}

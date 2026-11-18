@@ -1,0 +1,18 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: DStudio Harness Adapters
+Bundle-SymbolicName: eu.kalafatic.dstudio.harness
+Bundle-Version: 2.6.11.qualifier
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: eu.kalafatic.dstudio.harness
+Require-Bundle: eu.kalafatic.dstudio.core;bundle-version="2.6.11",
+ eu.kalafatic.dstudio.infrastructure;bundle-version="2.6.11"
+Export-Package: eu.kalafatic.dstudio.harness,
+ eu.kalafatic.dstudio.harness.opencode,
+ eu.kalafatic.dstudio.harness.aider,
+ eu.kalafatic.dstudio.harness.dcode,
+ eu.kalafatic.dstudio.harness.enr,
+ eu.kalafatic.dstudio.harness.ollama,
+ eu.kalafatic.dstudio.harness.openai,
+ eu.kalafatic.dstudio.harness.anthropic,
+ eu.kalafatic.dstudio.harness.claude

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         id="product"
+         point="org.eclipse.core.runtime.products">
+      <product
+            name="DStudio - Darwin Studio"
+            application="eu.kalafatic.dstudio.application.application">
+         <property
+               name="appName"
+               value="DStudio">
+         </property>
+         <property
+               name="windowImages"
+               value="icons/dstudio16.png,icons/dstudio32.png,icons/dstudio48.png,icons/dstudio64.png">
+         </property>
+         <property
+               name="aboutText"
+               value="DStudio - Darwin Studio&#x0A;&#x0A;Version: {0} (Build {1})&#x0A;&#x0A;Higher-level development and agent orchestration platform.&#x0A;Copyright (c) Kalafatic. All rights reserved.">
+         </property>
+      </product>
+   </extension>
+   <extension
+         id="application"
+         point="org.eclipse.core.runtime.applications">
+      <application
+            cardinality="singleton-global"
+            thread="main"
+            visible="true">
+         <run class="eu.kalafatic.dstudio.application.DStudioApplication"/>
+      </application>
+   </extension>
+   <extension
+         id="server"
+         point="org.eclipse.core.runtime.applications">
+      <application
+            cardinality="singleton-global"
+            thread="main"
+            visible="true">
+         <run class="eu.kalafatic.dstudio.application.DStudioServerApplication"/>
+      </application>
+   </extension>
+</plugin>

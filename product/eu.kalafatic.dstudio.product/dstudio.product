@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<product name="DStudio - Darwin Studio" uid="eu.kalafatic.dstudio.product.id"
+         id="eu.kalafatic.dstudio.application.product"
+         application="eu.kalafatic.dstudio.application.application"
+         version="2.6.11.qualifier" type="features" includeLaunchers="true" autoMountHierarchy="true">
+   <configIni use="default"/>
+   <launcherArgs>
+      <programArgs>-consoleLog</programArgs>
+      <vmArgs>-Dorg.eclipse.swt.graphics.Resource.reportNonDisposed=true</vmArgs>
+      <vmArgsMac>-XstartOnFirstThread -Dorg.eclipse.swt.internal.carbon.smallFonts</vmArgsMac>
+   </launcherArgs>
+   <launcher name="dstudio"><win useIco="false"><bmp/></win></launcher>
+   <vm/>
+   <splash
+      location="eu.kalafatic.dstudio.application"
+      startupProgressRect="20,270,460,6"
+      startupMessageRect="20,290,460,8"
+      startupForegroundColor="AA8CF0" />
+   <plugins/>
+   <features>
+      <feature id="eu.kalafatic.dstudio.feature"/>
+      <feature id="org.eclipse.platform"/>
+      <feature id="org.eclipse.jdt"/>
+      <feature id="org.eclipse.egit"/>
+      <feature id="org.eclipse.equinox.p2.core.feature"/>
+      <feature id="org.eclipse.equinox.p2.user.ui"/>
+      <feature id="org.eclipse.e4.rcp"/>
+   </features>
+   <configurations>
+      <plugin id="org.apache.felix.scr" autoStart="true" startLevel="2" />
+      <plugin id="org.eclipse.core.runtime" autoStart="true" startLevel="4" />
+      <plugin id="org.eclipse.equinox.common" autoStart="true" startLevel="2" />
+      <plugin id="org.eclipse.equinox.event" autoStart="true" startLevel="2" />
+      <plugin id="org.eclipse.equinox.simpleconfigurator" autoStart="true" startLevel="1" />
+      <plugin id="eu.kalafatic.dstudio.infrastructure" autoStart="true" startLevel="3" />
+      <plugin id="eu.kalafatic.dstudio.application" autoStart="true" startLevel="4" />
+      <plugin id="eu.kalafatic.dstudio.ui" autoStart="true" startLevel="4" />
+   </configurations>
+   <preferencesInfo><targetPlatform>JavaSE-21</targetPlatform></preferencesInfo>
+   <cssInfo/>
+</product>

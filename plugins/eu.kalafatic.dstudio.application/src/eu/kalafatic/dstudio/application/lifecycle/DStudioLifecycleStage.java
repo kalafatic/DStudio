@@ -1,0 +1,12 @@
+package eu.kalafatic.dstudio.application.lifecycle;
+
+public enum DStudioLifecycleStage {
+    APPLICATION_START,
+    CONFIGURATION_INITIALIZATION,
+    CORE_SERVICE_INITIALIZATION,
+    APPLICATION_READY,
+    WORKBENCH_RUNNING,
+    APPLICATION_SHUTDOWN,
+    SERVICE_DISPOSAL,
+    APPLICATION_TERMINATED
+}

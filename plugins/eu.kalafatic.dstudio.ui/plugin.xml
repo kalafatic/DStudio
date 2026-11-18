@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         point="org.eclipse.ui.perspectives">
+      <perspective
+            class="eu.kalafatic.dstudio.ui.perspective.DevelopmentPerspective"
+            id="eu.kalafatic.dstudio.ui.perspective.development"
+            name="Development"/>
+      <perspective
+            class="eu.kalafatic.dstudio.ui.perspective.HarnessPerspective"
+            id="eu.kalafatic.dstudio.ui.perspective.harness"
+            name="AI &amp; Harness"/>
+      <perspective
+            class="eu.kalafatic.dstudio.ui.perspective.ReviewPerspective"
+            id="eu.kalafatic.dstudio.ui.perspective.review"
+            name="Review"/>
+      <perspective
+            class="eu.kalafatic.dstudio.ui.perspective.RepositoryPerspective"
+            id="eu.kalafatic.dstudio.ui.perspective.repository"
+            name="Repository"/>
+   </extension>
+   <extension
+         point="org.eclipse.ui.views">
+      <view
+            class="eu.kalafatic.dstudio.ui.explorer.ProjectExplorerView"
+            id="eu.kalafatic.dstudio.ui.view.projectExplorer"
+            name="Project Explorer"
+            restorable="true"/>
+      <view
+            class="eu.kalafatic.dstudio.ui.harness.HarnessView"
+            id="eu.kalafatic.dstudio.ui.view.harness"
+            name="Harnesses"
+            restorable="true"/>
+      <view
+            class="eu.kalafatic.dstudio.ui.execution.ExecutionView"
+            id="eu.kalafatic.dstudio.ui.view.execution"
+            name="Executions"
+            restorable="true"/>
+      <view
+             class="eu.kalafatic.dstudio.ui.review.ReviewView"
+             id="eu.kalafatic.dstudio.ui.view.review"
+             name="Change Review"
+             restorable="true"/>
+      <view
+              class="eu.kalafatic.dstudio.ui.inference.InferenceView"
+              id="eu.kalafatic.dstudio.ui.view.inference"
+              name="Inference Engines"
+              restorable="true"/>
+      <view
+              class="eu.kalafatic.dstudio.ui.agent.AgentView"
+              id="eu.kalafatic.dstudio.ui.view.agents"
+              name="Agent Profiles"
+              restorable="true"/>
+   </extension>
+   <extension
+         point="org.eclipse.ui.console.consoleFactories">
+      <consoleFactory
+            class="eu.kalafatic.dstudio.ui.console.ExecutionConsoleFactory"
+            label="DStudio Execution Console"/>
+   </extension>
+   <extension
+         point="org.eclipse.ui.commands">
+      <command
+            id="eu.kalafatic.dstudio.command.openProject"
+            name="Open Project"/>
+      <command
+            id="eu.kalafatic.dstudio.command.runHarness"
+            name="Run Coding Task"/>
+      <command
+            id="eu.kalafatic.dstudio.command.cancelExecution"
+            name="Cancel Execution"/>
+      <command
+            id="eu.kalafatic.dstudio.command.refreshProjects"
+            name="Refresh Projects"/>
+   </extension>
+   <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            class="eu.kalafatic.dstudio.ui.handlers.OpenProjectHandler"
+            commandId="eu.kalafatic.dstudio.command.openProject"/>
+      <handler
+            class="eu.kalafatic.dstudio.ui.handlers.RunHarnessHandler"
+            commandId="eu.kalafatic.dstudio.command.runHarness"/>
+      <handler
+            class="eu.kalafatic.dstudio.ui.handlers.CancelExecutionHandler"
+            commandId="eu.kalafatic.dstudio.command.cancelExecution"/>
+      <handler
+            class="eu.kalafatic.dstudio.ui.handlers.RefreshProjectsHandler"
+            commandId="eu.kalafatic.dstudio.command.refreshProjects"/>
+   </extension>
+   <extension
+         point="org.eclipse.ui.bindings">
+      <key
+            commandId="eu.kalafatic.dstudio.command.runHarness"
+            contextId="org.eclipse.ui.contexts.window"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+            sequence="M1+ENTER"/>
+      <key
+            commandId="eu.kalafatic.dstudio.command.refreshProjects"
+            contextId="org.eclipse.ui.contexts.window"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+            sequence="F5"/>
+   </extension>
+   <extension
+         point="org.eclipse.ui.menus">
+      <menuContribution
+            allPopups="false"
+            locationURI="toolbar:org.eclipse.ui.main.toolbar">
+         <toolbar
+               id="eu.kalafatic.dstudio.toolbar">
+            <command
+                  commandId="eu.kalafatic.dstudio.command.openProject"
+                  label="Open Project"
+                  style="push"
+                  tooltip="Open an existing folder or repository as a DStudio project"/>
+            <command
+                  commandId="eu.kalafatic.dstudio.command.runHarness"
+                  label="Run Task"
+                  style="push"
+                  tooltip="Run a coding task with the selected harness"/>
+            <command
+                  commandId="eu.kalafatic.dstudio.command.cancelExecution"
+                  label="Cancel"
+                  style="push"
+                  tooltip="Cancel the selected execution"/>
+            <command
+                  commandId="eu.kalafatic.dstudio.command.refreshProjects"
+                  label="Refresh"
+                  style="push"
+                  tooltip="Refresh projects"/>
+         </toolbar>
+      </menuContribution>
+       <menuContribution
+             allPopups="false"
+             locationURI="popup:org.eclipse.ui.popup.any">
+          <command
+                commandId="eu.kalafatic.dstudio.command.runHarness"
+                label="Run Coding Task Here…"
+                style="push">
+             <visibleWhen
+                   checkEnabled="false">
+                <with
+                      variable="activePartId">
+                   <equals
+                         value="eu.kalafatic.dstudio.ui.view.projectExplorer"/>
+                </with>
+             </visibleWhen>
+          </command>
+       </menuContribution>
+       <menuContribution
+             allPopups="false"
+             locationURI="menu:org.eclipse.ui.main.menu?after=navigate">
+          <menu
+                id="dstudioProjectMenu"
+                label="&amp;Project">
+             <command
+                   commandId="eu.kalafatic.dstudio.command.openProject"
+                   label="Open Project…"
+                   style="push"/>
+             <command
+                   commandId="eu.kalafatic.dstudio.command.refreshProjects"
+                   label="Refresh Projects"
+                   style="push"/>
+          </menu>
+       </menuContribution>
+       <menuContribution
+             allPopups="false"
+             locationURI="menu:org.eclipse.ui.main.menu?after=dstudioProjectMenu">
+          <menu
+                id="dstudioRunMenu"
+                label="&amp;Run">
+             <command
+                   commandId="eu.kalafatic.dstudio.command.runHarness"
+                   label="Run Coding Task…"
+                   style="push"/>
+             <command
+                   commandId="eu.kalafatic.dstudio.command.cancelExecution"
+                   label="Cancel Execution"
+                   style="push"/>
+          </menu>
+       </menuContribution>
+    </extension>
+   <extension
+         point="org.eclipse.ui.startup">
+      <startup
+            class="eu.kalafatic.dstudio.ui.DStudioUiStartup"/>
+   </extension>
+</plugin>

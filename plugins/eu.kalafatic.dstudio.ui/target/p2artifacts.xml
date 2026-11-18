@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<?artifactRepository version='1.1.0'?>
+<artifacts size='1'>
+  <artifact classifier='osgi.bundle' id='eu.kalafatic.dstudio.ui' version='2.6.11.202611201729'>
+    <properties size='9'>
+      <property name='artifact.size' value='126257'/>
+      <property name='download.size' value='126257'/>
+      <property name='download.checksum.sha-512' value='22a06e0389a236315da55a592dc6f4d6858170a928ec9194f5b6a7d8af14613a90a2d4812bcd2d0a0e556f6307748b04f38fa36893c68b841598ebc21d650fe6'/>
+      <property name='download.checksum.sha-1' value='9136cd2514a0f062e2b0ec01f56a2cd3cbce2b0c'/>
+      <property name='download.checksum.sha-256' value='da533804b08ddf78d50d4d01a5d32694dd4d814ff6e5acf1ec3227a3abbbc600'/>
+      <property name='maven-groupId' value='eu.kalafatic.dstudio'/>
+      <property name='maven-artifactId' value='eu.kalafatic.dstudio.ui'/>
+      <property name='maven-version' value='2.6.11-SNAPSHOT'/>
+      <property name='maven-type' value='eclipse-plugin'/>
+    </properties>
+  </artifact>
+</artifacts>

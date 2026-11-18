@@ -1,0 +1,19 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: DStudio Tests
+Bundle-SymbolicName: eu.kalafatic.dstudio.tests
+Bundle-Version: 2.6.11.qualifier
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Require-Bundle: junit-jupiter-api;bundle-version="[5.10.2,5.10.3)",
+ junit-jupiter-engine;bundle-version="[5.10.2,5.10.3)",
+ org.eclipse.osgi,
+ org.eclipse.equinox.app,
+ eu.kalafatic.dstudio.core;bundle-version="2.6.11",
+ eu.kalafatic.dstudio.infrastructure;bundle-version="2.6.11",
+ eu.kalafatic.dstudio.harness;bundle-version="2.6.11",
+ eu.kalafatic.dstudio.teip;bundle-version="2.6.11",
+ eu.kalafatic.dstudio.application;bundle-version="2.6.11",
+ eu.kalafatic.dstudio.ui;bundle-version="2.6.11"
+Import-Package: org.eclipse.jgit.api;version="[7.0.0,8.0.0)"
+Export-Package: eu.kalafatic.dstudio.tests
+Automatic-Module-Name: eu.kalafatic.dstudio.tests

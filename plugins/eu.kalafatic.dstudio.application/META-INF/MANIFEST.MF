@@ -1,0 +1,23 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: DStudio Application
+Bundle-SymbolicName: eu.kalafatic.dstudio.application;singleton:=true
+Bundle-Version: 2.6.11.qualifier
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: eu.kalafatic.dstudio.application
+Require-Bundle: eu.kalafatic.dstudio.core;bundle-version="2.6.11",
+ eu.kalafatic.dstudio.infrastructure;bundle-version="2.6.11",
+ eu.kalafatic.dstudio.harness;bundle-version="2.6.11",
+ eu.kalafatic.dstudio.teip;bundle-version="2.6.11",
+ org.eclipse.core.runtime,
+ org.eclipse.equinox.app,
+ org.eclipse.swt,
+ org.eclipse.ui,
+ org.eclipse.ui.workbench
+Import-Package: org.eclipse.equinox.p2.core,
+ org.eclipse.equinox.p2.metadata,
+ org.eclipse.equinox.p2.repository,
+ org.eclipse.equinox.p2.repository.artifact,
+ org.eclipse.equinox.p2.repository.metadata
+Export-Package: eu.kalafatic.dstudio.application,
+ eu.kalafatic.dstudio.application.lifecycle

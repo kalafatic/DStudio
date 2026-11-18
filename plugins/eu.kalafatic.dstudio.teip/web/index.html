@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DStudio — Web IDE</title>
+<link rel="stylesheet" href="/web/style.css">
+</head>
+<body>
+<header id="topbar">
+  <span id="brand">DStudio Web IDE</span>
+  <button id="openProjectBtn" title="Open a folder or repository as a DStudio project">Open Project…</button>
+  <select id="projectSelect" title="Active project"></select>
+  <button id="refreshBtn" title="Refresh projects and tree">Refresh</button>
+  <span id="statusDot" class="dot unknown" title="Backend status"></span>
+</header>
+<div id="layout">
+  <aside id="sidebar">
+    <div class="panel" id="treePanel">
+      <div class="panelTitle">Files</div>
+      <div id="fileTree"></div>
+    </div>
+    <div class="panel" id="aiPanel">
+      <div class="panelTitle">AI Assistant <span id="aiEngineTag"></span></div>
+      <div class="aiRow">
+        <select id="engineSelect"></select>
+        <select id="modelSelect"></select>
+      </div>
+      <div class="aiRow">
+        <button id="newSessionBtn">New session</button>
+        <select id="sessionSelect"></select>
+      </div>
+      <div id="chatLog"></div>
+      <textarea id="chatInput" rows="2" placeholder="Ask the selected model… (Enter to send)"></textarea>
+    </div>
+    <div class="panel" id="taskPanel">
+      <div class="panelTitle">Coding Task</div>
+      <select id="harnessSelect"></select>
+      <textarea id="taskInstruction" rows="3" placeholder="Instruction for the coding harness…"></textarea>
+      <button id="runTaskBtn">Run task</button>
+      <div id="taskStatus"></div>
+    </div>
+    <div class="panel" id="eventsPanel">
+      <div class="panelTitle">Live Events</div>
+      <div id="eventsLog"></div>
+    </div>
+  </aside>
+  <main id="editorArea">
+    <div id="tabs"></div>
+    <div id="editorHost"><div class="placeholder">Open a project and select a file to edit.</div></div>
+  </main>
+</div>
+<div id="ctx-menu" class="ctx-menu" role="menu" hidden></div>
+<div id="ctx-toast" class="ctx-toast" hidden></div>
+<script src="/web/app.js"></script>
+</body>
+</html>

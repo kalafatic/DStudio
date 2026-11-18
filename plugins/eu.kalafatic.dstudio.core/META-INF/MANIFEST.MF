@@ -1,0 +1,18 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: DStudio Core
+Bundle-SymbolicName: eu.kalafatic.dstudio.core
+Bundle-Version: 2.6.11.qualifier
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: eu.kalafatic.dstudio.core
+Export-Package: eu.kalafatic.dstudio.core.agent,
+ eu.kalafatic.dstudio.core.config,
+ eu.kalafatic.dstudio.core.contextual,
+ eu.kalafatic.dstudio.core.contextual.handlers,
+ eu.kalafatic.dstudio.core.contextual.providers,
+ eu.kalafatic.dstudio.core.event,
+ eu.kalafatic.dstudio.core.harness,
+ eu.kalafatic.dstudio.core.inference,
+ eu.kalafatic.dstudio.core.model,
+ eu.kalafatic.dstudio.core.service,
+ eu.kalafatic.dstudio.core.store
