@@ -93,6 +93,24 @@ class DefaultHarnessRegistryTest {
     }
 
     @Test
+    void configurationUpdatePreservesUnspecifiedKeys() {
+        HarnessRegistry registry = newRegistry();
+        registry.registerAdapter(new FakeHarnessAdapter("fake", "FAKE"));
+        registry.updateConfiguration("fake", Map.of("binary", "/custom/opencode",
+                "authToken", "secret-token"));
+        // A partial update (as produced by the configuration dialog when it skips a
+        // masked secret) must keep the previously stored value, not delete it.
+        registry.updateConfiguration("fake", Map.of("binary", "/custom/other"));
+        HarnessRegistry second = newRegistry();
+        FakeHarnessAdapter freshAdapter = new FakeHarnessAdapter("fake", "FAKE");
+        second.registerAdapter(freshAdapter);
+        assertEquals("/custom/other",
+                freshAdapter.getConnectionConfiguration().get("binary"));
+        assertEquals("secret-token",
+                freshAdapter.getConnectionConfiguration().get("authToken"));
+    }
+
+    @Test
     void disabledAdapterIsNotSelected() {
         HarnessRegistry registry = newRegistry();
         registry.registerAdapter(new FakeHarnessAdapter("fake", "FAKE"));

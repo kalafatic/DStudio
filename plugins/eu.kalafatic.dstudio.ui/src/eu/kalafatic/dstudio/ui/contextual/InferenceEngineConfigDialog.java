@@ -59,7 +59,10 @@ public class InferenceEngineConfigDialog extends Dialog {
         Map<String, String> values = new LinkedHashMap<>();
         for (Map.Entry<String, Text> entry : fields.entrySet()) {
             String value = entry.getValue().getText().trim();
-            if (!value.isBlank() && !"••••••••".equals(value)) {
+            // Masked read-backs ("••••••••", "****** (configured)") and blank values
+            // are never written back: the previously stored value (the real secret)
+            // is kept instead of being clobbered with the mask literal.
+            if (!SecretMasking.isMasked(value)) {
                 values.put(entry.getKey(), value);
             }
         }

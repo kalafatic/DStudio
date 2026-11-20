@@ -132,11 +132,20 @@ public class DefaultHarnessRegistry implements HarnessRegistry {
         if (descriptor == null) {
             throw new IllegalArgumentException("Unknown harness: " + harnessId);
         }
-        configurations.put(harnessId, new ConcurrentHashMap<>(configuration));
-        store.saveConfiguration(harnessId, configuration);
+        // Merge with the previously stored configuration instead of replacing it:
+        // configuration dialogs omit masked secrets ("••••••••",
+        // "****** (configured)") so the stored value must survive an update that
+        // does not mention the key. Explicitly provided values always win.
+        Map<String, String> merged = new java.util.LinkedHashMap<>(
+                configurations.getOrDefault(harnessId, Map.of()));
+        if (configuration != null && !configuration.isEmpty()) {
+            merged.putAll(configuration);
+        }
+        configurations.put(harnessId, new ConcurrentHashMap<>(merged));
+        store.saveConfiguration(harnessId, merged);
         HarnessAdapter adapter = adapters.get(harnessId);
         if (adapter != null) {
-            adapter.updateConfiguration(configuration);
+            adapter.updateConfiguration(merged);
         }
         store.saveDescriptor(descriptor);
     }

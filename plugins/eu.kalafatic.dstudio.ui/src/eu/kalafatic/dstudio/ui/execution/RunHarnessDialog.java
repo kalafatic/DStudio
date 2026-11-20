@@ -38,6 +38,11 @@ public class RunHarnessDialog extends Dialog {
     private List<HarnessDescriptor> harnesses = List.of();
     private List<AgentProfile> agentProfiles = List.of();
     private List<String> engineIds = List.of();
+    private static final String MODEL_LOADING_PLACEHOLDER = "(loading models…)";
+    private static final String MODEL_DISCOVERY_FAILED_PREFIX =
+            "(model discovery failed";
+    /** Bumps on every refresh request so stale async results are discarded. */
+    private int modelLoadGeneration;
 
     public RunHarnessDialog(Shell parentShell) {
         super(parentShell);
@@ -186,6 +191,10 @@ public class RunHarnessDialog extends Dialog {
             }
         }
         String model = modelCombo.getText().trim();
+        if (model.startsWith(MODEL_DISCOVERY_FAILED_PREFIX)) {
+            // the error placeholder is informative only, never a model id
+            model = "";
+        }
         String instruction = instructionText.getText().trim();
         if (instruction.isBlank()) {
             org.eclipse.jface.dialogs.MessageDialog.openError(getShell(),
@@ -213,18 +222,41 @@ public class RunHarnessDialog extends Dialog {
      * harness's supported provider types (compatibility matrix) so the user is never
      * offered an incompatible combination. Free text remains available for explicit
      * provider/model values.
+     *
+     * <p>Model discovery is a blocking network operation (up to ~120s per engine), so it
+     * runs on a background thread; the combo shows a placeholder while loading and an
+     * explicit error entry when discovery fails. Stale results (a newer refresh request
+     * arrived, or the dialog closed) are discarded.</p>
      */
     private void refreshModelChoices() {
-        String current = modelCombo.getText();
+        final String current = modelCombo.getText();
+        final int request = ++modelLoadGeneration;
         modelCombo.removeAll();
-        modelCombo.add("");
+        modelCombo.add(MODEL_LOADING_PLACEHOLDER);
+        modelCombo.setText("");
         HarnessDescriptor harness = selectedHarness();
-        java.util.Set<String> added = new java.util.LinkedHashSet<>();
         var engineRegistry = DStudioUiPlugin.getInstance().inferenceEngineRegistry();
-        if (engineRegistry != null && harness != null) {
-            java.util.Set<String> supported = new java.util.LinkedHashSet<>(
-                    harnessRegistryCompatibility(harness));
-            for (var engine : engineRegistry.listEngines()) {
+        if (engineRegistry == null || harness == null) {
+            modelCombo.removeAll();
+            modelCombo.add("");
+            modelCombo.select(0);
+            return;
+        }
+        // Snapshot the compatibility filter and the engine descriptors on the UI thread;
+        // model discovery itself runs in the background.
+        java.util.Set<String> supported = new java.util.LinkedHashSet<>(
+                harnessRegistryCompatibility(harness));
+        List<eu.kalafatic.dstudio.core.inference.InferenceEngineDescriptor> engines =
+                new ArrayList<>();
+        for (var engine : engineRegistry.listEngines()) {
+            engines.add(engine);
+        }
+        org.eclipse.swt.widgets.Display display = getShell().getDisplay();
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            java.util.Set<String> added = new java.util.LinkedHashSet<>();
+            List<String> discovered = new ArrayList<>();
+            List<String> failures = new ArrayList<>();
+            for (var engine : engines) {
                 if (!engine.isEnabled() || (engine.getStatus() != null
                         && engine.getStatus().name().equals("ERROR"))) {
                     continue;
@@ -239,24 +271,41 @@ public class RunHarnessDialog extends Dialog {
                 try {
                     for (var model : adapter.get().listModels()) {
                         if (added.add(model.id())) {
-                            modelCombo.add(model.id());
+                            discovered.add(model.id());
                         }
                     }
                 } catch (RuntimeException discoveryFailed) {
-                    // engine unreachable: models appear on the next refresh
+                    failures.add(engine.getId() + ": " + discoveryFailed.getMessage());
                 }
                 String defaultModel = adapter.get().getConnectionConfiguration()
                         .getOrDefault("defaultModel", "");
                 if (!defaultModel.isBlank() && added.add(defaultModel)) {
-                    modelCombo.add(defaultModel);
+                    discovered.add(defaultModel);
                 }
             }
-        }
-        if (added.contains(current)) {
-            modelCombo.setText(current);
-        } else if (modelCombo.getItemCount() > 0) {
-            modelCombo.select(0);
-        }
+            final java.util.Set<String> discoveredIds = added;
+            final List<String> discoveryFailures = failures;
+            display.asyncExec(() -> {
+                if (request != modelLoadGeneration || modelCombo == null
+                        || modelCombo.isDisposed()) {
+                    return;
+                }
+                modelCombo.removeAll();
+                modelCombo.add("");
+                for (String model : discovered) {
+                    modelCombo.add(model);
+                }
+                if (!discoveryFailures.isEmpty()) {
+                    modelCombo.add(MODEL_DISCOVERY_FAILED_PREFIX + ": "
+                            + String.join("; ", discoveryFailures) + ")");
+                }
+                if (discoveredIds.contains(current)) {
+                    modelCombo.setText(current);
+                } else if (modelCombo.getItemCount() > 0) {
+                    modelCombo.select(0);
+                }
+            });
+        });
     }
 
     private java.util.Set<String> harnessRegistryCompatibility(HarnessDescriptor harness) {

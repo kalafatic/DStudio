@@ -134,11 +134,20 @@ public class DefaultInferenceEngineRegistry implements InferenceEngineRegistry {
         if (descriptor == null) {
             throw new IllegalArgumentException("Unknown inference engine: " + engineId);
         }
-        configurations.put(engineId, new ConcurrentHashMap<>(configuration));
-        store.saveConfiguration(engineId, configuration);
+        // Merge with the previously stored configuration instead of replacing it:
+        // configuration dialogs omit masked secrets ("••••••••",
+        // "****** (configured)") so the stored value must survive an update that
+        // does not mention the key. Explicitly provided values always win.
+        Map<String, String> merged = new java.util.LinkedHashMap<>(
+                configurations.getOrDefault(engineId, Map.of()));
+        if (configuration != null && !configuration.isEmpty()) {
+            merged.putAll(configuration);
+        }
+        configurations.put(engineId, new ConcurrentHashMap<>(merged));
+        store.saveConfiguration(engineId, merged);
         InferenceEngineAdapter adapter = adapters.get(engineId);
         if (adapter != null) {
-            adapter.updateConfiguration(configuration);
+            adapter.updateConfiguration(merged);
         }
         store.saveDescriptor(descriptor);
     }

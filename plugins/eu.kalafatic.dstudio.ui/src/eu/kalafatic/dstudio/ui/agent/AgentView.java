@@ -250,20 +250,23 @@ public class AgentView extends ViewPart {
         if (profile == null) {
             return;
         }
-        StringBuilder sb = new StringBuilder();
-        sb.append("name=").append(profile.getName()).append('\n');
-        sb.append("description=").append(profile.getDescription()).append('\n');
-        sb.append("role=").append(profile.getRole()).append('\n');
-        sb.append("systemInstructions=").append(profile.getSystemInstructions()).append('\n');
-        sb.append("toolPermissions=").append(String.join(",", profile.getToolPermissions()))
-                .append('\n');
-        sb.append("restrictions=").append(String.join(",", profile.getRestrictions()))
-                .append('\n');
-        sb.append("preferredHarness=").append(profile.getPreferredHarnessId()).append('\n');
-        sb.append("preferredProvider=").append(profile.getPreferredProviderId()).append('\n');
-        sb.append("preferredModel=").append(profile.getPreferredModel()).append('\n');
-        org.eclipse.jface.dialogs.MessageDialog.openInformation(getSite().getShell(),
-                "Agent Profile Export — " + profile.getName(), sb.toString());
+        // Real file export with the same JSON serialization used by the contextual
+        // AGENT_EXPORT action (RcpContextualActions): FileDialog + AgentProfileJson.
+        org.eclipse.swt.widgets.FileDialog dialog =
+                new org.eclipse.swt.widgets.FileDialog(getSite().getShell(), SWT.SAVE);
+        dialog.setFileName(profile.getId() + ".agent.json");
+        dialog.setFilterExtensions(new String[] { "*.json" });
+        String path = dialog.open();
+        if (path == null) {
+            return;
+        }
+        try {
+            java.nio.file.Files.writeString(java.nio.file.Path.of(path),
+                    eu.kalafatic.dstudio.ui.contextual.AgentProfileJson.toJson(profile),
+                    java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.IOException e) {
+            showError("Export agent profile", "Export failed: " + e.getMessage());
+        }
     }
 
     private void showError(String title, String message) {

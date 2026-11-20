@@ -158,13 +158,32 @@ public class HarnessView extends ViewPart {
     private void onTestConnection() {
         HarnessDescriptor descriptor = selectedDescriptor();
         HarnessRegistry registry = DStudioUiPlugin.getInstance().harnessRegistry();
-        if (descriptor != null && registry != null) {
-            var result = registry.testConnection(descriptor.getId());
-            org.eclipse.jface.dialogs.MessageDialog.openInformation(getSite().getShell(),
-                    "Connection Test",
-                    result.success() ? result.message() : result.message());
-            refresh();
+        if (descriptor == null || registry == null) {
+            return;
         }
+        org.eclipse.swt.widgets.Display display =
+                org.eclipse.swt.widgets.Display.getCurrent();
+        if (display == null) {
+            return;
+        }
+        // testConnection performs a blocking network round trip: run it off the UI
+        // thread and marshal the result dialog back with asyncExec.
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            var result = registry.testConnection(descriptor.getId());
+            display.asyncExec(() -> {
+                if (viewer == null || viewer.getControl().isDisposed()) {
+                    return;
+                }
+                if (result.success()) {
+                    org.eclipse.jface.dialogs.MessageDialog.openInformation(
+                            getSite().getShell(), "Connection Test", result.message());
+                } else {
+                    org.eclipse.jface.dialogs.MessageDialog.openError(
+                            getSite().getShell(), "Connection Test", result.message());
+                }
+                refresh();
+            });
+        });
     }
 
     private void onConfigure() {

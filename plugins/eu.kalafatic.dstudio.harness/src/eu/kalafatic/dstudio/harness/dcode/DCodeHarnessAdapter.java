@@ -41,10 +41,10 @@ public class DCodeHarnessAdapter implements HarnessAdapter {
     public static final String CONFIG_TIMEOUT_SECONDS = "timeoutSeconds";
 
     /**
-     * Family port convention: DCode/DCoder owns the 48xxx block (48080 default); it must
-     * never point at DStudio's own TEIP port (58xxx block, 58080 primary).
+     * Family port convention: DCode/DCoder owns the 58xxx block (58080 default); it
+     * must never point at DStudio's own TEIP port (48xxx block, 48080 primary).
      */
-    public static final String DEFAULT_ENDPOINT = "http://localhost:58080"; // DCode owns 58xxx
+    public static final String DEFAULT_ENDPOINT = "http://localhost:58080"; // DCode owns 58xxx (58080)
 
     private final Map<String, String> config = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();

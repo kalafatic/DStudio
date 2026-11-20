@@ -160,8 +160,24 @@ public class SchemaMigrationService {
      * default selection, scope-based execution configurations (GLOBAL/PROJECT/TASK) and
      * immutable per-execution configuration snapshots. The executions table gains the
      * resolved provider/agent/parameter columns.
+     *
+     * <p>The whole migration runs in a transaction (when the connection is in
+     * autocommit mode) and the ALTER TABLE statements are conditional on
+     * {@code PRAGMA table_info(executions)}: a crash between the DDL and the
+     * {@code schema_version} insert can therefore neither persist half of the
+     * migration nor fail the next startup with "duplicate column name".</p>
      */
     private void applyV4(Connection connection) {
+        boolean manageTransaction = false;
+        try {
+            if (connection.getAutoCommit()) {
+                connection.setAutoCommit(false);
+                manageTransaction = true;
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to begin schema migration V4: "
+                    + e.getMessage(), e);
+        }
         try (Statement statement = connection.createStatement()) {
             statement.execute("CREATE TABLE IF NOT EXISTS agent_profiles ("
                     + "id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, "
@@ -183,17 +199,60 @@ public class SchemaMigrationService {
             statement.execute("CREATE TABLE IF NOT EXISTS execution_snapshots ("
                     + "execution_id TEXT PRIMARY KEY, config_json TEXT NOT NULL DEFAULT '{}', "
                     + "created_at TEXT NOT NULL)");
-            statement.execute("ALTER TABLE executions ADD COLUMN provider_id TEXT NOT NULL DEFAULT ''");
-            statement.execute("ALTER TABLE executions ADD COLUMN agent_profile_id TEXT NOT NULL DEFAULT ''");
-            statement.execute("ALTER TABLE executions ADD COLUMN exec_params_json TEXT NOT NULL DEFAULT '{}'");
+            addColumnIfAbsent(connection, "executions", "provider_id",
+                    "TEXT NOT NULL DEFAULT ''");
+            addColumnIfAbsent(connection, "executions", "agent_profile_id",
+                    "TEXT NOT NULL DEFAULT ''");
+            addColumnIfAbsent(connection, "executions", "exec_params_json",
+                    "TEXT NOT NULL DEFAULT '{}'");
             try (PreparedStatement ps = connection.prepareStatement(
                     "INSERT INTO schema_version (version, applied_at) VALUES (4, ?)")) {
                 ps.setString(1, Instant.now().toString());
                 ps.executeUpdate();
             }
+            if (manageTransaction) {
+                connection.commit();
+            }
         } catch (Exception e) {
+            if (manageTransaction) {
+                try {
+                    connection.rollback();
+                } catch (Exception rollbackFailure) {
+                    // keep the original failure
+                }
+            }
             throw new IllegalStateException("Failed to apply schema migration V4: "
                     + e.getMessage(), e);
+        } finally {
+            if (manageTransaction) {
+                try {
+                    connection.setAutoCommit(true);
+                } catch (Exception ignored) {
+                    // the migration already succeeded or failed above
+                }
+            }
+        }
+    }
+
+    /**
+     * Executes {@code ALTER TABLE table ADD COLUMN column definition} only when the
+     * column is not already present (checked via {@code PRAGMA table_info}), so a
+     * partially applied migration can be re-run safely.
+     */
+    private void addColumnIfAbsent(Connection connection, String table, String column,
+            String definition) throws Exception {
+        try (Statement statement = connection.createStatement();
+                ResultSet rs = statement.executeQuery(
+                        "PRAGMA table_info(" + table + ")")) {
+            while (rs.next()) {
+                if (column.equals(rs.getString("name"))) {
+                    return;
+                }
+            }
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("ALTER TABLE " + table + " ADD COLUMN " + column
+                    + " " + definition);
         }
     }
 }

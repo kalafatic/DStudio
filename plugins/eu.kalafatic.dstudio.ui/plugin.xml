@@ -70,9 +70,12 @@
       <command
             id="eu.kalafatic.dstudio.command.cancelExecution"
             name="Cancel Execution"/>
-      <command
-            id="eu.kalafatic.dstudio.command.refreshProjects"
-            name="Refresh Projects"/>
+       <command
+             id="eu.kalafatic.dstudio.command.refreshProjects"
+             name="Refresh Projects"/>
+       <command
+             id="eu.kalafatic.dstudio.command.refreshInferenceModels"
+             name="Refresh Models"/>
    </extension>
    <extension
          point="org.eclipse.ui.handlers">
@@ -88,6 +91,9 @@
       <handler
             class="eu.kalafatic.dstudio.ui.handlers.RefreshProjectsHandler"
             commandId="eu.kalafatic.dstudio.command.refreshProjects"/>
+      <handler
+            class="eu.kalafatic.dstudio.ui.handlers.RefreshInferenceModelsHandler"
+            commandId="eu.kalafatic.dstudio.command.refreshInferenceModels"/>
    </extension>
    <extension
          point="org.eclipse.ui.bindings">

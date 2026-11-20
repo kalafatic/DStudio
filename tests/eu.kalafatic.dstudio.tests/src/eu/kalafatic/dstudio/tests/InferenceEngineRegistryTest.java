@@ -98,6 +98,25 @@ class InferenceEngineRegistryTest {
     }
 
     @Test
+    void configurationUpdatePreservesUnspecifiedKeys() {
+        String dbName = "registry-merge.db";
+        InferenceEngineRegistry registry = registryWithStore(dbName);
+        registry.registerEngine(new FakeInferenceEngineAdapter("enr", "ENR"));
+        registry.updateConfiguration("enr", Map.of("endpoint", "http://localhost:28780",
+                "apiKey", "secret-key"));
+        // A partial update (as produced by the configuration dialog when it skips a
+        // masked secret) must keep the previously stored value, not delete it.
+        registry.updateConfiguration("enr", Map.of("endpoint", "http://localhost:29999"));
+        SqliteDatabaseManager manager = new SqliteDatabaseManager(tempDir.resolve(dbName));
+        InferenceEngineRegistry second = new DefaultInferenceEngineRegistry(
+                new SqliteInferenceEngineStore(manager.connection(),
+                        new SecretCodec(tempDir)));
+        Map<String, String> restored = second.getConfiguration("enr");
+        assertEquals("http://localhost:29999", restored.get("endpoint"));
+        assertEquals("secret-key", restored.get("apiKey"));
+    }
+
+    @Test
     void selectionPersistsAcrossRegistryInstances() {
         String dbName = "registry-persist.db";
         InferenceEngineRegistry first = registryWithStore(dbName);

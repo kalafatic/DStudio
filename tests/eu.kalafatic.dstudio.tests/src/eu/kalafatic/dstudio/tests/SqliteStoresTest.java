@@ -20,6 +20,9 @@ import eu.kalafatic.dstudio.infrastructure.persistence.SqliteExecutionStore;
 import eu.kalafatic.dstudio.infrastructure.persistence.SqliteHarnessStore;
 import eu.kalafatic.dstudio.infrastructure.persistence.SqliteReviewStore;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -166,5 +169,48 @@ class SqliteStoresTest {
         executionStore.appendEvent(ExecutionEvent.of(1, "task-9",
                 ExecutionEventType.EXECUTION_QUEUED, "after re-migrate"));
         assertFalse(executionStore.loadEvents("task-9", 0, 10).isEmpty());
+    }
+
+    @Test
+    void migrationV4RecoversFromCrashBetweenDdlAndVersionInsert() throws Exception {
+        Path db = tempDir.resolve("v4-crash.db");
+        try (SqliteDatabaseManager manager = new SqliteDatabaseManager(db)) {
+            Connection connection = manager.connection();
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("CREATE TABLE schema_version (version INTEGER PRIMARY KEY, "
+                        + "applied_at TEXT NOT NULL)");
+                statement.execute("INSERT INTO schema_version (version, applied_at) "
+                        + "VALUES (1, 'now')");
+                statement.execute("INSERT INTO schema_version (version, applied_at) "
+                        + "VALUES (2, 'now')");
+                statement.execute("INSERT INTO schema_version (version, applied_at) "
+                        + "VALUES (3, 'now')");
+                statement.execute("CREATE TABLE executions (id TEXT PRIMARY KEY)");
+                // Simulated crash: two of the three V4 ALTER statements were applied
+                // before the crash; the schema_version insert never happened.
+                statement.execute("ALTER TABLE executions ADD COLUMN provider_id "
+                        + "TEXT NOT NULL DEFAULT ''");
+                statement.execute("ALTER TABLE executions ADD COLUMN agent_profile_id "
+                        + "TEXT NOT NULL DEFAULT ''");
+            }
+            new SchemaMigrationService().migrate(connection);
+            try (Statement statement = connection.createStatement();
+                    ResultSet rs = statement.executeQuery(
+                            "PRAGMA table_info(executions)")) {
+                java.util.Set<String> columns = new java.util.HashSet<>();
+                while (rs.next()) {
+                    columns.add(rs.getString("name"));
+                }
+                assertTrue(columns.contains("provider_id"));
+                assertTrue(columns.contains("agent_profile_id"));
+                assertTrue(columns.contains("exec_params_json"));
+            }
+            try (Statement statement = connection.createStatement();
+                    ResultSet rs = statement.executeQuery(
+                            "SELECT COALESCE(MAX(version), 0) FROM schema_version")) {
+                assertTrue(rs.next());
+                assertEquals(4, rs.getInt(1));
+            }
+        }
     }
 }

@@ -244,18 +244,31 @@ public class InferenceView extends ViewPart {
     private void onTestConnection() {
         InferenceEngineDescriptor descriptor = selectedEngine();
         InferenceEngineRegistry registry = registry();
-        if (descriptor != null && registry != null) {
-            Display display = Display.getCurrent();
-            if (display != null) {
-                display.asyncExec(() -> {
-                    var result = registry.testConnection(descriptor.getId());
-                    org.eclipse.jface.dialogs.MessageDialog.openInformation(
-                            getSite().getShell(), "Connection Test",
-                            result.success() ? result.message() : result.message());
-                    refresh();
-                });
-            }
+        if (descriptor == null || registry == null) {
+            return;
         }
+        Display display = Display.getCurrent();
+        if (display == null) {
+            return;
+        }
+        // testConnection performs a blocking network round trip: run it off the UI
+        // thread and marshal the dialog back with asyncExec.
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            var result = registry.testConnection(descriptor.getId());
+            display.asyncExec(() -> {
+                if (viewer == null || viewer.getControl().isDisposed()) {
+                    return;
+                }
+                if (result.success()) {
+                    org.eclipse.jface.dialogs.MessageDialog.openInformation(
+                            getSite().getShell(), "Connection Test", result.message());
+                } else {
+                    org.eclipse.jface.dialogs.MessageDialog.openError(
+                            getSite().getShell(), "Connection Test", result.message());
+                }
+                refresh();
+            });
+        });
     }
 
     private void onRefreshModels() {
@@ -275,6 +288,14 @@ public class InferenceView extends ViewPart {
         modelViewer.setInput(models);
     }
 
+    /**
+     * Programmatic model refresh; used by the "Models → Refresh models" menu handler
+     * (same operation as the "Refresh Models" button).
+     */
+    public void refreshModels() {
+        onRefreshModels();
+    }
+
     private void onModelLifecycle(boolean load) {
         InferenceEngineDescriptor engineDescriptor = selectedEngine();
         InferenceEngineRegistry registry = registry();
@@ -285,18 +306,30 @@ public class InferenceView extends ViewPart {
         InferenceEngineAdapter.InferenceModel model =
                 (InferenceEngineAdapter.InferenceModel) selection.getFirstElement();
         Display display = Display.getCurrent();
-        if (display != null) {
-            display.asyncExec(() -> {
-                registry.findAdapter(engineDescriptor.getId()).ifPresent(adapter -> {
-                    boolean success = load ? adapter.loadModel(model.id())
-                            : adapter.unloadModel(model.id());
-                    org.eclipse.jface.dialogs.MessageDialog.openInformation(
-                            getSite().getShell(), load ? "Load Model" : "Unload Model",
-                            success ? "Model " + model.id() + " operation succeeded"
-                                    : "Model " + model.id() + " operation failed");
-                });
-            });
+        if (display == null) {
+            return;
         }
+        // loadModel/unloadModel perform blocking engine round trips: run them off the
+        // UI thread and marshal the result dialog back with asyncExec.
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            boolean success = false;
+            var adapter = registry.findAdapter(engineDescriptor.getId());
+            if (adapter.isPresent()) {
+                success = load ? adapter.get().loadModel(model.id())
+                        : adapter.get().unloadModel(model.id());
+            }
+            boolean operationSucceeded = success;
+            display.asyncExec(() -> {
+                if (viewer == null || viewer.getControl().isDisposed()) {
+                    return;
+                }
+                org.eclipse.jface.dialogs.MessageDialog.openInformation(
+                        getSite().getShell(), load ? "Load Model" : "Unload Model",
+                        operationSucceeded
+                                ? "Model " + model.id() + " operation succeeded"
+                                : "Model " + model.id() + " operation failed");
+            });
+        });
     }
 
     public void refresh() {
@@ -307,7 +340,10 @@ public class InferenceView extends ViewPart {
         List<InferenceEngineDescriptor> descriptors = registry == null ? List.of()
                 : new ArrayList<>(registry.listEngines());
         viewer.setInput(descriptors);
-        modelViewer.setInput(new ArrayList<>());
+        // The model viewer is intentionally left untouched: refreshes (default
+        // selection, enable/disable, contextual actions) must neither clear the
+        // discovered models nor lose the selected model id — model discovery only
+        // runs via onRefreshModels().
     }
 
     @Override
