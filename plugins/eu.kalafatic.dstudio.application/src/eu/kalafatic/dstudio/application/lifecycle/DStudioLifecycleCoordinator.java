@@ -331,6 +331,16 @@ public class DStudioLifecycleCoordinator {
         });
     }
 
+    /**
+     * Stops the TEIP server if it is running. Has no effect if the server is already
+     * stopped or not initialized.
+     */
+    public void stopServer() {
+        if (server != null) {
+            server.stop();
+            server = null;
+        }
+    }
     private void onWorkbenchRunning() {
     }
 

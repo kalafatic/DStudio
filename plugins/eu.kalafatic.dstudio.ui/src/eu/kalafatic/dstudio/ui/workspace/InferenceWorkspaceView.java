@@ -736,10 +736,23 @@ public final class InferenceWorkspaceView extends ViewPart implements ChatWorksp
         StringBuilder prompt = new StringBuilder();
         for (String path : attachments) {
             Path file = Path.of(path);
-            prompt.append("[Attached file: ").append(file.getFileName()).append("]\n");
+            String fileName = file.getFileName().toString();
+            boolean isImage = fileName.toLowerCase().endsWith(".png")
+                    || fileName.toLowerCase().endsWith(".jpg")
+                    || fileName.toLowerCase().endsWith(".jpeg")
+                    || fileName.toLowerCase().endsWith(".gif")
+                    || fileName.toLowerCase().endsWith(".webp");
+            prompt.append("[Attached file: ").append(fileName).append("]\n");
             try {
                 if (Files.size(file) > MAX_ATTACHMENT_BYTES) {
                     prompt.append("(file too large to attach inline)\n\n");
+                    continue;
+                }
+                if (isImage) {
+                    prompt.append("(image file attached - model may not support image input; ")
+                            .append(fileName)
+                            .append(" will be noted in prompt)\n\n");
+                    prompt.append("![image: ").append(fileName).append("]\n\n");
                     continue;
                 }
                 prompt.append("```\n").append(Files.readString(file,

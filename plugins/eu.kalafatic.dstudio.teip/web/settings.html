@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DStudio Settings</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="topbar">
+  <div class="brand">
+    <span class="brand-mark">&#9672;</span>
+    <span id="brandName">Settings</span>
+    <span class="brand-sub">configuration &amp; persistence</span>
+  </div>
+  <div class="spacer"></div>
+  <span id="connStatus" class="conn offline" title="Backend status">&#9679; connecting</span>
+  <a class="btn" href="index.html" title="Back to inference">Inference</a>
+  <a class="btn" href="help.html" target="_blank" rel="noopener" title="Help and documentation">Help</a>
+  <button id="themeBtn" class="btn" title="Toggle light/dark theme">theme</button>
+</header>
+
+<main>
+  <div id="banner" class="banner" hidden></div>
+  <div class="grid">
+    <div class="card">
+      <h4>Connection</h4>
+      <div class="kv"><span class="k">State</span><span class="v" id="cState">—</span></div>
+      <div class="kv"><span class="k">Endpoint</span><span class="v" id="cEndpoint">—</span></div>
+      <div class="kv"><span class="k">Backend</span><span class="v" id="cBackend">—</span></div>
+      <div class="kv"><span class="k">Version</span><span class="v" id="cVersion">—</span></div>
+      <div class="row" style="margin-top:8px;margin-bottom:0">
+        <button class="small" id="retryBtn">Retry</button>
+        <button class="small" id="tokenBtn">Set token</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Defaults</h4>
+      <div class="row">
+        <label>Provider</label>
+        <select id="providerSelect"><option value="">loading…</option></select>
+        <button class="small" id="scanProvidersBtn">Scan</button>
+      </div>
+      <div class="row">
+        <label>Model</label>
+        <select id="modelSelect"><option value="">loading…</option></select>
+        <button class="small" id="browseModelsBtn">Browse</button>
+      </div>
+      <div class="row" id="harnessRow" hidden>
+        <label>Harness</label>
+        <select id="harnessSelect"><option value="">—</option></select>
+      </div>
+      <div class="row" id="agentRow" hidden>
+        <label>Agent</label>
+        <select id="agentSelect"><option value="">—</option></select>
+      </div>
+      <div class="row" style="margin-bottom:0">
+        <button class="primary" id="applyDefaultsBtn">Apply defaults</button>
+        <span class="muted">Persisted by the backend.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Projects</h4>
+      <table id="projectTable"><tbody><tr><td class="muted">loading…</td></tr></tbody></table>
+      <div class="row" style="margin-top:8px;margin-bottom:0">
+        <input id="projectPath" type="text" placeholder="folder / repository path">
+        <button class="small" id="openProjectBtn">Open project</button>
+        <button class="small" id="refreshProjectsBtn">Refresh</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Providers</h4>
+      <table id="providerTable"><tbody><tr><td class="muted">loading…</td></tr></tbody></table>
+      <div class="row" style="margin-top:8px;margin-bottom:0">
+        <button class="small" id="scanProvidersBtn2">Scan local providers</button>
+        <span class="muted">LLM runtimes / inference engines</span>
+      </div>
+    </div>
+
+    <div class="card" id="harnessCard" hidden>
+      <h4>Harnesses</h4>
+      <table id="harnessTable"><tbody><tr><td class="muted">loading…</td></tr></tbody></table>
+    </div>
+
+    <div class="card">
+      <h4>Models</h4>
+      <table id="modelTable"><tbody><tr><td class="muted">loading…</td></tr></tbody></table>
+      <div class="row" style="margin-top:8px;margin-bottom:0">
+        <button class="small" id="browseModelsBtn2">Browse all models</button>
+        <span class="muted" id="modelHint">All providers</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Persistence</h4>
+      <div class="kv"><span class="k">Owner</span><span class="v">backend core services</span></div>
+      <div class="kv"><span class="k">Config</span><span class="v">backend-managed</span></div>
+      <div class="kv"><span class="k">Projects</span><span class="v">backend-managed</span></div>
+      <div class="kv"><span class="k">Secrets</span><span class="v">never shown in the browser</span></div>
+      <div class="muted" style="margin-top:6px">Providers, models, projects, harnesses and
+        defaults are owned and persisted by the backend; this page is the same frontend an
+        external browser sees.</div>
+    </div>
+  </div>
+</main>
+
+<div id="toast" class="toast" hidden></div>
+<script src="common.js"></script>
+<script src="settings.js"></script>
+</body>
+</html>

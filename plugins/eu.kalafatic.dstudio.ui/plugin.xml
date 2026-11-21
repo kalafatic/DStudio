@@ -21,6 +21,14 @@
             name="Repository"/>
    </extension>
    <extension
+         point="org.eclipse.ui.editors">
+      <editor
+            class="eu.kalafatic.dstudio.ui.editor.DStudioMultiPageEditor"
+            default="false"
+            id="eu.kalafatic.dstudio.ui.editors.multi"
+            name="DStudio Inference"/>
+   </extension>
+   <extension
          point="org.eclipse.ui.views">
       <view
             class="eu.kalafatic.dstudio.ui.explorer.ProjectExplorerView"
@@ -110,6 +118,9 @@
       <command
             id="eu.kalafatic.dstudio.command.help.diagnostics"
             name="Diagnostics"/>
+      <command
+            id="eu.kalafatic.dstudio.command.openInferenceEditor"
+            name="Open Inference Editor"/>
    </extension>
    <extension
          point="org.eclipse.ui.handlers">
@@ -152,6 +163,9 @@
       <handler
             class="eu.kalafatic.dstudio.ui.workbench.OpenHelpHandler"
             commandId="eu.kalafatic.dstudio.command.help.diagnostics"/>
+      <handler
+            class="eu.kalafatic.dstudio.ui.handlers.OpenInferenceEditorHandler"
+            commandId="eu.kalafatic.dstudio.command.openInferenceEditor"/>
    </extension>
    <extension
          point="org.eclipse.ui.bindings">
@@ -243,6 +257,14 @@
                    label="Cancel Execution"
                    style="push"/>
           </menu>
+       </menuContribution>
+       <menuContribution
+             allPopups="false"
+             locationURI="menu:window">
+          <command
+                commandId="eu.kalafatic.dstudio.command.openInferenceEditor"
+                label="Open Inference Editor"
+                style="push"/>
        </menuContribution>
     </extension>
    <extension

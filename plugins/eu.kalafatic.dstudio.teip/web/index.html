@@ -1,72 +1,83 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DStudio — Web IDE</title>
-<link rel="stylesheet" href="/web/style.css">
+<title>DStudio — Inference</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header id="topbar">
-  <span id="brand">DStudio Web IDE</span>
-  <button id="openProjectBtn" title="Open a folder or repository as a DStudio project">Open Project…</button>
-  <select id="projectSelect" title="Active project"></select>
-  <button id="refreshBtn" title="Refresh projects and tree">Refresh</button>
-  <a id="helpBtn" href="/help.html" target="_blank" rel="noopener" title="Help and documentation">Help</a>
-  <span id="statusDot" class="dot unknown" title="Backend status"></span>
+  <div class="brand">
+    <span class="brand-mark">&#9672;</span>
+    <span id="brandName">DStudio</span>
+    <span class="brand-sub" id="brandSub">inference</span>
+  </div>
+  <div class="spacer"></div>
+  <span id="connStatus" class="conn offline" title="Backend status">&#9679; connecting</span>
+  <a class="btn" href="settings.html" title="Providers, models, projects and harnesses">Settings</a>
+  <a class="btn" href="help.html" target="_blank" rel="noopener" title="Help and documentation">Help</a>
+  <button id="themeBtn" class="btn" title="Toggle light/dark theme">theme</button>
 </header>
+
 <div id="layout">
   <aside id="sidebar">
-    <div class="panel" id="treePanel">
-      <div class="panelTitle">Files</div>
-      <div id="fileTree"></div>
-    </div>
-    <div class="panel" id="aiPanel">
-      <div class="panelTitle">AI Assistant <span id="aiEngineTag"></span></div>
-      <div class="aiRow">
-        <select id="engineSelect"></select>
-        <select id="modelSelect"></select>
+    <div class="panel">
+      <div class="panel-head">
+        <span>Conversations</span>
+        <button id="newChatBtn" class="btn small">New</button>
       </div>
-      <div class="aiRow">
-        <button id="newSessionBtn">New session</button>
-        <select id="sessionSelect"></select>
-      </div>
-      <div id="chatLog"></div>
-      <textarea id="chatInput" rows="2" placeholder="Ask the selected model… (Enter to send)"></textarea>
+      <div id="conversationList" class="list"></div>
     </div>
-    <div class="panel" id="modelManagerPanel">
-      <div class="panelTitle">Model Manager</div>
-      <div class="aiRow">
-        <select id="mmProvider"></select>
-        <input id="mmModel" type="text" placeholder="model id, e.g. qwen3-vl:30b">
-      </div>
-      <div class="aiRow">
-        <button id="mmPullBtn">Pull Model</button>
-        <button id="mmRefreshBtn">Refresh</button>
-      </div>
-      <div id="mmStatus"></div>
-      <div id="mmDownloads"></div>
-      <div id="mmInstalled"></div>
-    </div>
-    <div class="panel" id="taskPanel">
-      <div class="panelTitle">Coding Task</div>
-      <select id="harnessSelect"></select>
-      <textarea id="taskInstruction" rows="3" placeholder="Instruction for the coding harness…"></textarea>
-      <button id="runTaskBtn">Run task</button>
-      <div id="taskStatus"></div>
-    </div>
-    <div class="panel" id="eventsPanel">
-      <div class="panelTitle">Live Events</div>
-      <div id="eventsLog"></div>
+    <div class="panel">
+      <div class="panel-head"><span>Context</span></div>
+      <label class="field"><span>Project</span>
+        <select id="projectSelect"><option value="">(none)</option></select>
+      </label>
+      <label class="field" id="harnessField"><span>Harness</span>
+        <select id="harnessSelect"><option value="">(none)</option></select>
+      </label>
+      <div class="muted" id="contextHint">Projects and harnesses are managed in Settings.</div>
     </div>
   </aside>
-  <main id="editorArea">
-    <div id="tabs"></div>
-    <div id="editorHost"><div class="placeholder">Open a project and select a file to edit.</div></div>
+
+  <main id="main">
+    <div id="toolbar">
+      <label class="inline"><span>Provider</span>
+        <select id="providerSelect"><option value="">loading…</option></select>
+      </label>
+      <label class="inline"><span>Model</span>
+        <select id="modelSelect"><option value="">loading…</option></select>
+      </label>
+      <button id="refreshBtn" class="btn small" title="Reload providers and models">Refresh</button>
+      <span class="spacer"></span>
+      <span id="modelMeta" class="muted"></span>
+    </div>
+
+    <div id="chatLog" class="chat">
+      <div class="empty">
+        <div class="empty-title">Select a provider and model to start.</div>
+        <div class="empty-text">Conversations run against the same authoritative backend
+          that the desktop IDE uses. Provider, model, project and harness configuration
+          live in the Settings tab.</div>
+      </div>
+    </div>
+
+    <div id="composer">
+      <textarea id="promptInput" rows="3"
+        placeholder="Ask the selected model… (Enter to send, Shift+Enter for a newline)"></textarea>
+      <div class="composer-actions">
+        <span id="sendStatus" class="muted"></span>
+        <span class="spacer"></span>
+        <button id="cancelBtn" class="btn danger" hidden>Cancel</button>
+        <button id="sendBtn" class="btn primary">Send</button>
+      </div>
+    </div>
   </main>
 </div>
-<div id="ctx-menu" class="ctx-menu" role="menu" aria-label="Context actions" hidden></div>
-<div id="ctx-toast" class="ctx-toast" hidden></div>
-<script src="/web/app.js"></script>
+
+<div id="toast" class="toast" hidden></div>
+<script src="common.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
