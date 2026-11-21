@@ -51,6 +51,11 @@ public class DStudioUiPlugin extends AbstractUIPlugin {
         return coordinator == null ? null : coordinator.getInferenceEngineRegistry();
     }
 
+    public eu.kalafatic.dstudio.core.inference.InferenceService inferenceService() {
+        DStudioLifecycleCoordinator coordinator = coordinator();
+        return coordinator == null ? null : coordinator.getInferenceService();
+    }
+
     public ExecutionService executionService() {
         DStudioLifecycleCoordinator coordinator = coordinator();
         return coordinator == null ? null : coordinator.getExecutionService();

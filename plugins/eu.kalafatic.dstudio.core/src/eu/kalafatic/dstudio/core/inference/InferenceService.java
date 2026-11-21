@@ -15,6 +15,18 @@ public interface InferenceService {
     /** Creates a persisted session for the given engine/model; publishes CREATED. */
     InferenceSession createSession(String engineId, String model, String systemPrompt);
 
+    /** Creates a persisted session with a user-visible title. */
+    default InferenceSession createSession(String engineId, String model,
+            String systemPrompt, String title) {
+        return createSession(engineId, model, systemPrompt);
+    }
+
+    /** Renames a session; the title must not be blank. */
+    InferenceSession renameSession(String sessionId, String title);
+
+    /** Deletes a session and its message history. Idempotent for unknown ids. */
+    void deleteSession(String sessionId);
+
     List<InferenceSession> listSessions();
 
     Optional<InferenceSession> getSession(String sessionId);

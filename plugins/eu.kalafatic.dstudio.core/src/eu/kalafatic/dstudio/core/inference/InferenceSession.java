@@ -9,16 +9,18 @@ import java.time.Instant;
  * backend so every client sees the same conversation.
  */
 public record InferenceSession(String id, String engineId, String model, String systemPrompt,
-        Status status, String statusMessage, Instant createdAt, Instant updatedAt) {
+        Status status, String statusMessage, Instant createdAt, Instant updatedAt,
+        String title) {
 
     public enum Status {
         OPEN, CANCELLED, FAILED
     }
 
     public static InferenceSession of(String id, String engineId, String model,
-            String systemPrompt) {
+            String systemPrompt, String title) {
         Instant now = Instant.now();
         return new InferenceSession(id, engineId, model,
-                systemPrompt == null ? "" : systemPrompt, Status.OPEN, "", now, now);
+                systemPrompt == null ? "" : systemPrompt, Status.OPEN, "", now, now,
+                title == null || title.isBlank() ? "Untitled" : title);
     }
 }

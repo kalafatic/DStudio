@@ -43,6 +43,11 @@
              name="Change Review"
              restorable="true"/>
       <view
+            class="eu.kalafatic.dstudio.ui.workspace.InferenceWorkspaceView"
+            id="eu.kalafatic.dstudio.ui.view.inferenceWorkspace"
+            name="Inference Workspace"
+            restorable="true"/>
+      <view
               class="eu.kalafatic.dstudio.ui.inference.InferenceView"
               id="eu.kalafatic.dstudio.ui.view.inference"
               name="Inference Engines"
@@ -74,8 +79,32 @@
              id="eu.kalafatic.dstudio.command.refreshProjects"
              name="Refresh Projects"/>
        <command
-             id="eu.kalafatic.dstudio.command.refreshInferenceModels"
-             name="Refresh Models"/>
+              id="eu.kalafatic.dstudio.command.refreshInferenceModels"
+              name="Refresh Models"/>
+      <command
+            id="eu.kalafatic.dstudio.command.openTerminal"
+            name="Open Terminal"/>
+      <command
+            id="eu.kalafatic.dstudio.command.openWebInterface"
+            name="Open Web Interface"/>
+      <command
+            id="eu.kalafatic.dstudio.command.help.contents"
+            name="Help Contents"/>
+      <command
+            id="eu.kalafatic.dstudio.command.help.gettingStarted"
+            name="Getting Started"/>
+      <command
+            id="eu.kalafatic.dstudio.command.help.context"
+            name="Context Help"/>
+      <command
+            id="eu.kalafatic.dstudio.command.help.shortcuts"
+            name="Keyboard Shortcuts"/>
+      <command
+            id="eu.kalafatic.dstudio.command.help.cli"
+            name="CLI Commands"/>
+      <command
+            id="eu.kalafatic.dstudio.command.help.diagnostics"
+            name="Diagnostics"/>
    </extension>
    <extension
          point="org.eclipse.ui.handlers">
@@ -94,6 +123,30 @@
       <handler
             class="eu.kalafatic.dstudio.ui.handlers.RefreshInferenceModelsHandler"
             commandId="eu.kalafatic.dstudio.command.refreshInferenceModels"/>
+      <handler
+            class="eu.kalafatic.dstudio.ui.workbench.OpenTerminalHandler"
+            commandId="eu.kalafatic.dstudio.command.openTerminal"/>
+      <handler
+            class="eu.kalafatic.dstudio.ui.workbench.OpenWebInterfaceHandler"
+            commandId="eu.kalafatic.dstudio.command.openWebInterface"/>
+      <handler
+            class="eu.kalafatic.dstudio.ui.workbench.OpenHelpHandler"
+            commandId="eu.kalafatic.dstudio.command.help.contents"/>
+      <handler
+            class="eu.kalafatic.dstudio.ui.workbench.OpenHelpHandler"
+            commandId="eu.kalafatic.dstudio.command.help.gettingStarted"/>
+      <handler
+            class="eu.kalafatic.dstudio.ui.workbench.OpenHelpHandler"
+            commandId="eu.kalafatic.dstudio.command.help.context"/>
+      <handler
+            class="eu.kalafatic.dstudio.ui.workbench.OpenHelpHandler"
+            commandId="eu.kalafatic.dstudio.command.help.shortcuts"/>
+      <handler
+            class="eu.kalafatic.dstudio.ui.workbench.OpenHelpHandler"
+            commandId="eu.kalafatic.dstudio.command.help.cli"/>
+      <handler
+            class="eu.kalafatic.dstudio.ui.workbench.OpenHelpHandler"
+            commandId="eu.kalafatic.dstudio.command.help.diagnostics"/>
    </extension>
    <extension
          point="org.eclipse.ui.bindings">

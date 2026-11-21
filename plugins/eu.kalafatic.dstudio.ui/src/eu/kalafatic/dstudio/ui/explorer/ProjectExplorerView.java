@@ -48,10 +48,13 @@ public class ProjectExplorerView extends ViewPart {
         menuManager.addMenuListener(new IMenuListener() {
             @Override
             public void menuAboutToShow(IMenuManager manager) {
-                Project project = selectedProject();
-                if (project != null) {
+                Object element = selectedElement();
+                if (element instanceof ProjectExplorerContentProvider.ProjectFileEntry entry) {
+                    fillFileEntryMenu(manager, entry);
+                } else if (element instanceof Project project) {
                     // Unified contextual actions for the project (same ids and domain
-                    // operations as the web interface).
+                    // operations as the web interface), plus the family terminal/web
+                    // entries through the shared launchers.
                     eu.kalafatic.dstudio.core.contextual.ContextSelection selection =
                             eu.kalafatic.dstudio.core.contextual.ContextSelection
                                     .builder("DSTUDIO", "RCP", "project")
@@ -62,6 +65,21 @@ public class ProjectExplorerView extends ViewPart {
                             DStudioUiPlugin.getInstance().contextualActionRegistry()
                                     .resolve(selection),
                             selection, getSite().getShell(), ProjectExplorerView.this::refresh);
+                    manager.add(new org.eclipse.jface.action.Separator());
+                    manager.add(new org.eclipse.jface.action.Action("Open Terminal") {
+                        @Override
+                        public void run() {
+                            eu.kalafatic.dstudio.ui.workbench.TerminalLauncher
+                                    .open(project.rootPath());
+                        }
+                    });
+                    manager.add(new org.eclipse.jface.action.Action("Open Web Interface") {
+                        @Override
+                        public void run() {
+                            eu.kalafatic.dstudio.ui.workbench.WebInterfaceLauncher
+                                    .openWebInterface();
+                        }
+                    });
                     manager.add(new org.eclipse.jface.action.Action("Refresh") {
                         @Override
                         public void run() {
@@ -94,6 +112,64 @@ public class ProjectExplorerView extends ViewPart {
         getSite().registerContextMenu(menuManager, viewer);
     }
 
+    /**
+     * Context menu for a file/directory entry: Open (files only, same behavior as the
+     * double-click), Copy Path, Open Terminal (directories only) and Refresh.
+     */
+    private void fillFileEntryMenu(IMenuManager manager,
+            ProjectExplorerContentProvider.ProjectFileEntry entry) {
+        if (entry.file().isFile()) {
+            manager.add(new org.eclipse.jface.action.Action("Open") {
+                @Override
+                public void run() {
+                    openFile(entry);
+                }
+            });
+        }
+        manager.add(new org.eclipse.jface.action.Action("Copy Path") {
+            @Override
+            public void run() {
+                copyToClipboard(entry.file().getAbsolutePath());
+            }
+        });
+        manager.add(new org.eclipse.jface.action.Separator());
+        if (entry.file().isDirectory()) {
+            manager.add(new org.eclipse.jface.action.Action("Open Terminal") {
+                @Override
+                public void run() {
+                    eu.kalafatic.dstudio.ui.workbench.TerminalLauncher
+                            .open(entry.file().getAbsolutePath());
+                }
+            });
+            manager.add(new org.eclipse.jface.action.Separator());
+        }
+        manager.add(new org.eclipse.jface.action.Action("Refresh") {
+            @Override
+            public void run() {
+                refresh();
+            }
+        });
+    }
+
+    private static void copyToClipboard(String text) {
+        org.eclipse.swt.dnd.Clipboard clipboard = new org.eclipse.swt.dnd.Clipboard(
+                org.eclipse.ui.PlatformUI.getWorkbench().getDisplay());
+        clipboard.setContents(new Object[] { text },
+                new org.eclipse.swt.dnd.Transfer[] {
+                    org.eclipse.swt.dnd.TextTransfer.getInstance() });
+        clipboard.dispose();
+    }
+
+    private void openFile(ProjectExplorerContentProvider.ProjectFileEntry entry) {
+        IWorkbenchPage page = getSite().getPage();
+        try {
+            IDE.openEditorOnFileStore(page, EFS.getStore(entry.file().toURI()));
+        } catch (Exception e) {
+            System.err.println("DStudio: failed to open editor for "
+                    + entry.file() + ": " + e.getMessage());
+        }
+    }
+
     private void openSelection(ISelection selection) {
         if (!(selection instanceof IStructuredSelection structured)
                 || structured.isEmpty()) {
@@ -102,14 +178,17 @@ public class ProjectExplorerView extends ViewPart {
         Object element = structured.getFirstElement();
         if (element instanceof ProjectExplorerContentProvider.ProjectFileEntry entry
                 && entry.file().isFile()) {
-            IWorkbenchPage page = getSite().getPage();
-            try {
-                IDE.openEditorOnFileStore(page, EFS.getStore(entry.file().toURI()));
-            } catch (Exception e) {
-                System.err.println("DStudio: failed to open editor for "
-                        + entry.file() + ": " + e.getMessage());
-            }
+            openFile(entry);
         }
+    }
+
+    private Object selectedElement() {
+        ISelection selection = viewer.getSelection();
+        if (selection instanceof IStructuredSelection structured
+                && !structured.isEmpty()) {
+            return structured.getFirstElement();
+        }
+        return null;
     }
 
     public void refresh() {

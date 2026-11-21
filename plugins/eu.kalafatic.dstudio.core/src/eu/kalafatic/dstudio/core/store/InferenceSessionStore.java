@@ -18,4 +18,7 @@ public interface InferenceSessionStore {
     void addMessage(InferenceSessionMessage message);
 
     List<InferenceSessionMessage> listMessages(String sessionId);
+
+    /** Deletes a session and its messages. Idempotent for unknown ids. */
+    void deleteSession(String sessionId);
 }

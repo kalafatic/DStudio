@@ -374,6 +374,30 @@ public final class RcpContextualActions {
                 }
             });
         }));
+        // Family surface actions: shared ids, executed through the shared launchers
+        // (single implementation with the Tools menu entries).
+        registry.registerHandler(rcp(ContextActionIds.TERMINAL_OPEN, (sel, fb) -> {
+            String rootPath = sel.state("rootPath");
+            if (rootPath.isBlank()) {
+                var projectService = plugin.projectService();
+                Optional<eu.kalafatic.dstudio.core.model.Project> project =
+                        projectService == null ? Optional.empty()
+                                : projectService.findProject(sel.objectId());
+                rootPath = project
+                        .map(eu.kalafatic.dstudio.core.model.Project::rootPath)
+                        .orElse("");
+            }
+            if (rootPath.isBlank()) {
+                fb.error("Project root path unavailable", null);
+                return;
+            }
+            eu.kalafatic.dstudio.ui.workbench.TerminalLauncher.open(rootPath);
+            fb.info("Terminal opened in " + rootPath);
+        }));
+        registry.registerHandler(rcp(ContextActionIds.WEB_OPEN, (sel, fb) -> {
+            eu.kalafatic.dstudio.ui.workbench.WebInterfaceLauncher.openWebInterface();
+            fb.info("Web interface opened");
+        }));
     }
 
     // ---------------------------------------------------------------- plumbing

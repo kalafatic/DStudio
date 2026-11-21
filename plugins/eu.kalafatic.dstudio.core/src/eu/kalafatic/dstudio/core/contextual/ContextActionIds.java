@@ -107,6 +107,10 @@ public final class ContextActionIds {
     public static final String PROJECT_CREATE_SESSION = "eu.kalafatic.contextual.project.create-session";
     public static final String PROJECT_CLOSE = "eu.kalafatic.contextual.project.close";
 
+    // family surfaces (project-level launcher actions, shared ids across the family)
+    public static final String TERMINAL_OPEN = "eu.kalafatic.contextual.terminal.open";
+    public static final String WEB_OPEN = "eu.kalafatic.contextual.web.open";
+
     private ContextActionIds() {
     }
 }

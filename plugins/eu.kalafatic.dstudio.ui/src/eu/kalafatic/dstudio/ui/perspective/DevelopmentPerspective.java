@@ -23,7 +23,8 @@ public class DevelopmentPerspective implements IPerspectiveFactory {
         bottom.addView("org.eclipse.ui.console.ConsoleView");
         bottom.addView("org.eclipse.ui.views.ProblemView");
         IFolderLayout right = layout.createFolder("right",
-                IPageLayout.RIGHT, 0.72f, editorArea);
+                IPageLayout.RIGHT, 0.58f, editorArea);
+        right.addView("eu.kalafatic.dstudio.ui.view.inferenceWorkspace");
         right.addView(ExecutionView.VIEW_ID);
         right.addView(HarnessView.VIEW_ID);
         layout.getViewLayout(ProjectExplorerView.VIEW_ID).setCloseable(false);

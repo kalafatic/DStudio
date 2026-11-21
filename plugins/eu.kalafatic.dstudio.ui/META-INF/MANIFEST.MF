@@ -9,6 +9,7 @@ Bundle-Activator: eu.kalafatic.dstudio.ui.DStudioUiPlugin
 Automatic-Module-Name: eu.kalafatic.dstudio.ui
 Require-Bundle: eu.kalafatic.dstudio.core;bundle-version="2.6.11",
  eu.kalafatic.dstudio.application;bundle-version="2.6.11",
+ eu.kalafatic.dstudio.ui.inference;bundle-version="2.6.11",
  org.eclipse.core.runtime,
  org.eclipse.ui,
  org.eclipse.ui.ide,

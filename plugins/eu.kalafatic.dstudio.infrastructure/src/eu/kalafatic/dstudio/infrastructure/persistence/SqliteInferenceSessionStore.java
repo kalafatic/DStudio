@@ -25,11 +25,11 @@ public class SqliteInferenceSessionStore implements InferenceSessionStore {
     public void saveSession(InferenceSession session) {
         try (PreparedStatement ps = connection.prepareStatement(
                 "INSERT INTO inference_sessions (id, engine_id, model, system_prompt, "
-                        + "status, status_message, created_at, updated_at) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                        + "status, status_message, created_at, updated_at, title) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
                         + "ON CONFLICT(id) DO UPDATE SET status=excluded.status, "
                         + "status_message=excluded.status_message, "
-                        + "updated_at=excluded.updated_at")) {
+                        + "updated_at=excluded.updated_at, title=excluded.title")) {
             ps.setString(1, session.id());
             ps.setString(2, session.engineId());
             ps.setString(3, session.model());
@@ -38,6 +38,7 @@ public class SqliteInferenceSessionStore implements InferenceSessionStore {
             ps.setString(6, session.statusMessage());
             ps.setString(7, session.createdAt().toString());
             ps.setString(8, session.updatedAt().toString());
+            ps.setString(9, session.title());
             ps.executeUpdate();
         } catch (Exception e) {
             throw new IllegalStateException("Failed to save inference session: "
@@ -49,7 +50,7 @@ public class SqliteInferenceSessionStore implements InferenceSessionStore {
     public Optional<InferenceSession> findSession(String sessionId) {
         try (PreparedStatement ps = connection.prepareStatement(
                 "SELECT id, engine_id, model, system_prompt, status, status_message, "
-                        + "created_at, updated_at FROM inference_sessions WHERE id = ?")) {
+                        + "created_at, updated_at, title FROM inference_sessions WHERE id = ?")) {
             ps.setString(1, sessionId);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? Optional.of(map(rs)) : Optional.empty();
@@ -65,7 +66,7 @@ public class SqliteInferenceSessionStore implements InferenceSessionStore {
         List<InferenceSession> result = new ArrayList<>();
         try (PreparedStatement ps = connection.prepareStatement(
                 "SELECT id, engine_id, model, system_prompt, status, status_message, "
-                        + "created_at, updated_at FROM inference_sessions ORDER BY rowid");
+                        + "created_at, updated_at, title FROM inference_sessions ORDER BY rowid");
                 ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 result.add(map(rs));
@@ -82,7 +83,26 @@ public class SqliteInferenceSessionStore implements InferenceSessionStore {
                 rs.getString("model"), rs.getString("system_prompt"),
                 InferenceSession.Status.valueOf(rs.getString("status")),
                 rs.getString("status_message"), Instant.parse(rs.getString("created_at")),
-                Instant.parse(rs.getString("updated_at")));
+                Instant.parse(rs.getString("updated_at")), rs.getString("title"));
+    }
+
+    @Override
+    public void deleteSession(String sessionId) {
+        try {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "DELETE FROM inference_messages WHERE session_id = ?")) {
+                ps.setString(1, sessionId);
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "DELETE FROM inference_sessions WHERE id = ?")) {
+                ps.setString(1, sessionId);
+                ps.executeUpdate();
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to delete inference session: "
+                    + e.getMessage(), e);
+        }
     }
 
     @Override

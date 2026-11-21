@@ -260,7 +260,8 @@ public class InferenceHttpHandler implements HttpHandler {
                 InferenceSession session = inferenceService.createSession(
                         body.path("engine").asText(""),
                         body.path("model").asText(""),
-                        body.path("systemPrompt").asText(""));
+                        body.path("systemPrompt").asText(""),
+                        body.path("title").asText(null));
                 respond(exchange, 201, sessionWire(session));
                 return;
             }
@@ -293,6 +294,19 @@ public class InferenceHttpHandler implements HttpHandler {
                     }
                     wire.put("messages", messages);
                     respond(exchange, 200, wire);
+                    return;
+                }
+                if (parts.length == 3 && "POST".equals(method)
+                        && parts[2].equals("rename")) {
+                    JsonNode body = mapper.readTree(exchange.getRequestBody());
+                    InferenceSession renamed = inferenceService.renameSession(sessionId,
+                            body.path("title").asText(""));
+                    respond(exchange, 200, sessionWire(renamed));
+                    return;
+                }
+                if (parts.length == 2 && "DELETE".equals(method)) {
+                    inferenceService.deleteSession(sessionId);
+                    respond(exchange, 200, Map.of("sessionId", sessionId, "deleted", true));
                     return;
                 }
                 if (parts.length == 3 && "POST".equals(method)
@@ -383,6 +397,7 @@ public class InferenceHttpHandler implements HttpHandler {
         wire.put("statusMessage", session.statusMessage());
         wire.put("createdAt", session.createdAt().toString());
         wire.put("updatedAt", session.updatedAt().toString());
+        wire.put("title", session.title());
         return wire;
     }
 

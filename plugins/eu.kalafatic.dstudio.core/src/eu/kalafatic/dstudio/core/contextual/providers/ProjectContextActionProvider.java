@@ -72,6 +72,26 @@ public class ProjectContextActionProvider implements ContextualActionProvider {
                 .withConfirmation(ContextualActionDescriptor.Confirmation.CONFIRM);
         actions.add(single ? ProviderSupport.enabled(close)
                 : ProviderSupport.disabled(close, "Not available for multiple selection"));
+
+        // Family surface actions. The RCP Project Explorer appends its own terminal/web
+        // entries through the shared launchers, so the registry contributes these ids
+        // only to the web surface: a browser cannot spawn a terminal and the web
+        // interface is already open there. Disabled entries stay visible (contract:
+        // availability must be transparent).
+        if (ContextSelection.SURFACE_WEB.equals(selection.surface())) {
+            ContextualActionDescriptor terminalOpen = ProviderSupport.descriptor(
+                    ContextActionIds.TERMINAL_OPEN, "Open Terminal",
+                    ContextualActionDescriptor.GROUP_SELECTION, ProviderSupport.CTX_PROJECT);
+            actions.add(single ? ProviderSupport.disabled(terminalOpen,
+                    "Terminals can only be opened from the desktop application.")
+                    : ProviderSupport.disabled(terminalOpen,
+                            "Not available for multiple selection"));
+            ContextualActionDescriptor webOpen = ProviderSupport.descriptor(
+                    ContextActionIds.WEB_OPEN, "Open Web Interface",
+                    ContextualActionDescriptor.GROUP_SELECTION, ProviderSupport.CTX_PROJECT);
+            actions.add(ProviderSupport.disabled(webOpen,
+                    "The web interface is already open in this browser."));
+        }
         return actions;
     }
 }

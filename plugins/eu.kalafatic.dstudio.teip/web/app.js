@@ -433,6 +433,8 @@ $("runTaskBtn").addEventListener("click", runTask);
 /* ---------- unified contextual actions (Darwin Family contract v1.0) ---------- */
 /* The same action ids/descriptors as the RCP context menus, resolved and executed
    through the shared backend registry. Event delegation only — no inline handlers. */
+let lastContextTrigger = null;
+
 function markContextualTargets() {
   const targets = [
     { el: $("projectSelect"), type: "project" },
@@ -448,7 +450,7 @@ function markContextualTargets() {
     el.classList.add("ctx-target");
     el.addEventListener("contextmenu", (event) => {
       event.preventDefault();
-      openContextMenuFor(event.clientX, event.clientY, target.type);
+      openContextMenuFor(event.clientX, event.clientY, target.type, el);
     });
     const overflow = document.createElement("button");
     overflow.className = "ctx-target";
@@ -456,7 +458,7 @@ function markContextualTargets() {
     overflow.title = "More actions";
     overflow.addEventListener("click", () => {
       const rect = overflow.getBoundingClientRect();
-      openContextMenuFor(rect.left, rect.bottom + 2, target.type);
+      openContextMenuFor(rect.left, rect.bottom + 2, target.type, overflow);
     });
     el.after(overflow);
   }
@@ -477,9 +479,10 @@ function selectionFrom(type) {
   return selection;
 }
 
-async function openContextMenuFor(x, y, type) {
+async function openContextMenuFor(x, y, type, trigger) {
   const selection = selectionFrom(type);
   if (!selection.objectId) { return; }
+  lastContextTrigger = trigger || null;
   try {
     const params = new URLSearchParams();
     params.set("type", selection.objectType);
@@ -511,6 +514,9 @@ function renderContextMenu(x, y, actions, selection) {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "ctx-item" + (action.dangerous ? " danger" : "");
+    item.setAttribute("role", "menuitem");
+    if (action.dangerous) { item.setAttribute("aria-label", action.label + " (dangerous)"); }
+    if (!action.enabled) { item.setAttribute("aria-disabled", "true"); }
     item.textContent = action.label;
     item.disabled = !action.enabled;
     item.title = action.description
@@ -523,6 +529,8 @@ function renderContextMenu(x, y, actions, selection) {
   if (!menu.childNodes.length) {
     const none = document.createElement("div");
     none.className = "ctx-item";
+    none.setAttribute("role", "menuitem");
+    none.setAttribute("aria-disabled", "true");
     none.textContent = "No actions available";
     none.disabled = true;
     menu.appendChild(none);
@@ -532,11 +540,24 @@ function renderContextMenu(x, y, actions, selection) {
   const top = Math.min(y, window.innerHeight - menu.offsetHeight - 8);
   menu.style.left = left + "px";
   menu.style.top = top + "px";
+  // Keyboard accessibility: focus the first enabled item when the menu opens.
+  const firstEnabled = menu.querySelector("button.ctx-item:not(:disabled)");
+  if (firstEnabled) { firstEnabled.focus(); }
 }
 
-function closeContextMenu() {
+function enabledMenuItems() {
+  const menu = $("ctx-menu");
+  if (menu.hidden) { return []; }
+  return [...menu.querySelectorAll("button.ctx-item")].filter((item) => !item.disabled);
+}
+
+function closeContextMenu(restoreFocus) {
   const menu = $("ctx-menu");
   menu.hidden = true;
+  if (restoreFocus && lastContextTrigger) {
+    lastContextTrigger.focus();
+    lastContextTrigger = null;
+  }
 }
 
 async function executeContextual(action, selection) {
@@ -590,7 +611,24 @@ document.addEventListener("click", (event) => {
   if (!$("ctx-menu").contains(event.target)) { closeContextMenu(); }
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") { closeContextMenu(); }
+  const menu = $("ctx-menu");
+  if (menu.hidden) { return; }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeContextMenu(true);
+    return;
+  }
+  const items = enabledMenuItems();
+  if (items.length === 0) { return; }
+  const currentIndex = items.indexOf(document.activeElement);
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    items[(currentIndex + 1) % items.length].focus();
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    items[(currentIndex - 1 + items.length) % items.length].focus();
+  }
+  // Enter activates the focused item through its native button click handling.
 });
 
 (async function boot() {

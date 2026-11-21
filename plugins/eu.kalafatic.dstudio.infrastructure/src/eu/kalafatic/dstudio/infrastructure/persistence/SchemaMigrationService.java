@@ -8,7 +8,7 @@ import java.time.Instant;
 
 public class SchemaMigrationService {
 
-    public static final int LATEST_VERSION = 4;
+    public static final int LATEST_VERSION = 5;
 
     public void migrate(Connection connection) {
         try (Statement statement = connection.createStatement()) {
@@ -30,6 +30,45 @@ public class SchemaMigrationService {
         }
         if (current < 4) {
             applyV4(connection);
+        }
+        if (current < 5) {
+            applyV5(connection);
+        }
+    }
+
+    /**
+     * V5 (inference workspace): user-visible title on inference sessions, with the
+     * existing rows backfilled to a neutral default.
+     */
+    private void applyV5(Connection connection) {
+        try {
+            // Defensive recreation: a database that crashed before the V3 inference
+            // tables were created declares version >= 3 without those tables. Create
+            // them fully (including the V5 title column) so re-migration recovers.
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("CREATE TABLE IF NOT EXISTS inference_sessions ("
+                        + "id TEXT PRIMARY KEY, engine_id TEXT NOT NULL, model TEXT NOT NULL, "
+                        + "system_prompt TEXT NOT NULL DEFAULT '', "
+                        + "status TEXT NOT NULL DEFAULT 'OPEN', "
+                        + "status_message TEXT NOT NULL DEFAULT '', "
+                        + "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, "
+                        + "title TEXT NOT NULL DEFAULT 'Untitled')");
+                statement.execute("CREATE TABLE IF NOT EXISTS inference_messages ("
+                        + "id TEXT PRIMARY KEY, session_id TEXT NOT NULL, "
+                        + "role TEXT NOT NULL, content TEXT NOT NULL DEFAULT '', "
+                        + "created_at TEXT NOT NULL)");
+            }
+            // Existing V3 tables gain the title column when missing.
+            addColumnIfAbsent(connection, "inference_sessions", "title",
+                    "TEXT NOT NULL DEFAULT 'Untitled'");
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "INSERT INTO schema_version (version, applied_at) VALUES (5, ?)")) {
+                ps.setString(1, Instant.now().toString());
+                ps.executeUpdate();
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to apply schema migration V5: "
+                    + e.getMessage(), e);
         }
     }
 

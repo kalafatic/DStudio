@@ -36,13 +36,40 @@ public class DefaultInferenceService implements InferenceService {
 
     @Override
     public InferenceSession createSession(String engineId, String model, String systemPrompt) {
+        return createSession(engineId, model, systemPrompt, null);
+    }
+
+    @Override
+    public InferenceSession createSession(String engineId, String model, String systemPrompt,
+            String title) {
         InferenceEngineAdapter adapter = resolveEngine(engineId);
         String selectedModel = resolveModel(adapter, model);
         InferenceSession session = InferenceSession.of(newSessionId(), adapter.getEngineId(),
-                selectedModel, systemPrompt);
+                selectedModel, systemPrompt, title);
         store.saveSession(session);
         eventBus.publish(InferenceStreamEvent.created(session));
         return session;
+    }
+
+    @Override
+    public InferenceSession renameSession(String sessionId, String title) {
+        if (title == null || title.isBlank()) {
+            throw new InferenceException(InferenceException.Code.VALIDATION_FAILED,
+                    "Session title must not be blank");
+        }
+        InferenceSession current = store.findSession(sessionId).orElseThrow(() ->
+                new InferenceException(InferenceException.Code.NOT_FOUND,
+                        "Unknown inference session: " + sessionId));
+        InferenceSession updated = new InferenceSession(current.id(), current.engineId(),
+                current.model(), current.systemPrompt(), current.status(),
+                current.statusMessage(), current.createdAt(), Instant.now(), title);
+        store.saveSession(updated);
+        return updated;
+    }
+
+    @Override
+    public void deleteSession(String sessionId) {
+        store.deleteSession(sessionId);
     }
 
     @Override
@@ -180,7 +207,8 @@ public class DefaultInferenceService implements InferenceService {
     private void markCancelled(InferenceSession session) {
         InferenceSession updated = new InferenceSession(session.id(), session.engineId(),
                 session.model(), session.systemPrompt(), InferenceSession.Status.CANCELLED,
-                "cancelled by request", session.createdAt(), Instant.now());
+                "cancelled by request", session.createdAt(), Instant.now(),
+                session.title());
         store.saveSession(updated);
         eventBus.publish(InferenceStreamEvent.cancelled(session.id(), session.engineId(),
                 session.model()));
@@ -189,7 +217,8 @@ public class DefaultInferenceService implements InferenceService {
     private void markFailed(InferenceSession session, String message) {
         InferenceSession updated = new InferenceSession(session.id(), session.engineId(),
                 session.model(), session.systemPrompt(), InferenceSession.Status.FAILED,
-                message == null ? "" : message, session.createdAt(), Instant.now());
+                message == null ? "" : message, session.createdAt(), Instant.now(),
+                session.title());
         store.saveSession(updated);
         eventBus.publish(InferenceStreamEvent.error(session.id(), session.engineId(),
                 session.model(), message));
@@ -198,7 +227,7 @@ public class DefaultInferenceService implements InferenceService {
     private static InferenceSession withUpdatedAt(InferenceSession session) {
         return new InferenceSession(session.id(), session.engineId(), session.model(),
                 session.systemPrompt(), session.status(), session.statusMessage(),
-                session.createdAt(), Instant.now());
+                session.createdAt(), Instant.now(), session.title());
     }
 
     private InferenceEngineAdapter resolveEngine(String engineId) {

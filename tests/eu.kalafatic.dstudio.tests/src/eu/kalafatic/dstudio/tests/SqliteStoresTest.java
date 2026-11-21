@@ -209,7 +209,7 @@ class SqliteStoresTest {
                     ResultSet rs = statement.executeQuery(
                             "SELECT COALESCE(MAX(version), 0) FROM schema_version")) {
                 assertTrue(rs.next());
-                assertEquals(4, rs.getInt(1));
+                assertEquals(SchemaMigrationService.LATEST_VERSION, rs.getInt(1));
             }
         }
     }

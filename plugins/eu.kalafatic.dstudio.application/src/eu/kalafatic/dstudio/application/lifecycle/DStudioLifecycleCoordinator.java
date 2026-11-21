@@ -440,4 +440,21 @@ public class DStudioLifecycleCoordinator {
     public DStudioServer getServer() {
         return server;
     }
+
+    /**
+     * Port the backend server is actually bound to; falls back to the configured TEIP
+     * port and finally to the family default. Exposed so UI-bundle surfaces (web
+     * interface / help launchers) resolve the live port without importing TEIP types
+     * (layering ui → application → teip).
+     */
+    public int getBoundTeipPort() {
+        DStudioServer current = server;
+        if (current != null && current.isRunning() && current.getBoundPort() > 0) {
+            return current.getBoundPort();
+        }
+        if (configuration != null && configuration.teipPort() > 0) {
+            return configuration.teipPort();
+        }
+        return DStudioConfiguration.DEFAULT_TEIP_PORT;
+    }
 }

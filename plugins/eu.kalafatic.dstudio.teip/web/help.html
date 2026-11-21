@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DStudio — Help</title>
+<style>
+:root {
+  --bg: #1e1f26; --panel: #272933; --panel2: #2f323e; --text: #e2e4ec;
+  --dim: #9aa0b0; --accent: #4f8cff; --ok: #34c77b; --err: #e05c5c; --border: #3a3e4d;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; font-family: "Segoe UI", "Ubuntu", sans-serif; font-size: 14px;
+  background: var(--bg); color: var(--text); line-height: 1.55;
+}
+header {
+  padding: 14px 22px; background: var(--panel); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+header nav a { color: var(--accent); text-decoration: none; margin-right: 14px; font-size: 13px; }
+header nav a:hover { text-decoration: underline; }
+main { max-width: 900px; margin: 0 auto; padding: 18px 22px 60px; }
+h2 {
+  font-size: 16px; color: var(--accent); border-bottom: 1px solid var(--border);
+  padding-bottom: 6px; margin-top: 34px;
+}
+h3 { font-size: 14px; margin: 20px 0 6px; color: var(--text); }
+p { margin: 8px 0; }
+code, kbd, pre {
+  font-family: "DejaVu Sans Mono", monospace; font-size: 12.5px;
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 4px;
+  padding: 1px 5px;
+}
+pre { padding: 10px 12px; overflow-x: auto; }
+pre code { border: none; background: none; padding: 0; }
+kbd {
+  background: var(--panel2); border-bottom-width: 2px; color: var(--text);
+  white-space: nowrap;
+}
+ul { margin: 8px 0; padding-left: 22px; }
+li { margin: 4px 0; }
+.note { color: var(--dim); font-size: 13px; }
+.back { display: inline-block; margin-top: 22px; color: var(--accent); text-decoration: none; }
+.back:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<header>
+  <h1>DStudio Help</h1>
+  <nav>
+    <a href="#top">Overview</a>
+    <a href="#getting-started">Getting Started</a>
+    <a href="#shortcuts">Shortcuts</a>
+    <a href="#context">Context Help</a>
+    <a href="#cli">CLI Commands</a>
+    <a href="#diagnostics">Diagnostics</a>
+  </nav>
+</header>
+<main>
+
+<h2 id="top">DStudio Overview</h2>
+<p>DStudio (Darwin Studio) is the professional IDE and headless Harness Platform of the
+Darwin product family. One shared core runs two faces: the <strong>desktop IDE</strong>
+(projects, source editing, harness execution, monitoring and review) and the
+<strong>headless server</strong> that exposes the same core through the TEIP&nbsp;1.1
+provider endpoints (<code>/teip/v1/*</code>) plus this web interface and API.</p>
+<p>The web interface served here talks to the same backend the desktop application
+uses: projects, coding tasks, inference engines, agent profiles and live events are
+shared. Anything you do in the browser is immediately visible in the IDE and vice
+versa.</p>
+<p>This help site documents the running instance: the menu structure, keyboard
+shortcuts, context help anchors, the headless CLI commands and the diagnostics
+surface.</p>
+
+<h2 id="getting-started">Getting Started</h2>
+<ol>
+  <li><strong>Open a project.</strong> In the desktop IDE use <em>Project → Open
+      Project…</em>; in the web interface use the <em>Open Project…</em> button in the
+      toolbar and enter the path of a folder or repository.</li>
+  <li><strong>Configure the coding harness.</strong> Open the <em>Harnesses</em> view
+      (menu <em>Harness → Show Harness View</em>) to select the default harness
+      (DCode is the family default; OpenCode, Aider and Claude Code adapters are
+      available).</li>
+  <li><strong>Run a coding task.</strong> Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd>
+      (<kbd>⌘</kbd>+<kbd>Enter</kbd> on macOS), use <em>Run → Run Coding Task…</em>, or
+      the <em>Coding Task</em> panel in the web interface. The execution appears in the
+      <em>Executions</em> view and its log output in the DStudio Execution Console.</li>
+  <li><strong>Review the changes.</strong> After an execution, open the
+      <em>Change Review</em> view to accept or reject each changed file.</li>
+  <li><strong>Use the AI assistant.</strong> The <em>Inference Engines</em> view
+      manages engines (ENR is the family default) and models; the web interface offers
+      a chat assistant with streaming responses and reusable sessions.</li>
+  <li><strong>Headless mode.</strong> Run the product with
+      <code>-headless</code> (or the <code>server</code> application): it serves the
+      TEIP/API surface on port <code>48080</code> by default and offers an interactive
+      CLI when a terminal is attached (see <a href="#cli">CLI Commands</a>).</li>
+</ol>
+<p class="note">Configuration is stored in <code>~/.dstudio/dstudio.properties</code>
+and business state in <code>~/.dstudio/dstudio.db</code>; the Eclipse workspace holds
+only the workbench layout.</p>
+
+<h2 id="shortcuts">Keyboard Shortcuts and Menu Structure</h2>
+<h3>Global shortcuts</h3>
+<ul>
+  <li><kbd>Ctrl</kbd>+<kbd>Enter</kbd> / <kbd>M1</kbd>+<kbd>Enter</kbd> — run the
+      harness on the active project (opens the Run dialog).</li>
+  <li><kbd>F5</kbd> — refresh the project list.</li>
+  <li><kbd>F1</kbd> — context help: opens this help site at the section describing the
+      currently active view (see <a href="#context">Context Help</a>).</li>
+</ul>
+<h3>Tools menu</h3>
+<ul>
+  <li><em>Tools → Open Terminal</em> — opens a system terminal in the active project
+      directory (falls back to your home directory). Supported emulators:
+      <code>x-terminal-emulator</code>, <code>gnome-terminal</code>,
+      <code>konsole</code>, <code>xterm</code>. The same action is available in the
+      Project Explorer context menu (on projects and on folder entries).</li>
+  <li><em>Tools → Open Web Interface</em> — opens this web interface in your browser
+      on the port the backend server is actually bound to.</li>
+</ul>
+<h3>Help menu</h3>
+<ul>
+  <li><em>Help → Help Contents</em> — this page (<code>#top</code>).</li>
+  <li><em>Help → Getting Started</em> — <code>#getting-started</code>.</li>
+  <li><em>Help → Context Help</em> — help for the active view (same as
+      <kbd>F1</kbd>).</li>
+  <li><em>Help → Keyboard Shortcuts</em> — <code>#shortcuts</code>.</li>
+  <li><em>Help → CLI Commands</em> — <code>#cli</code>.</li>
+  <li><em>Help → Diagnostics</em> — opens <code>/api/diagnostics</code> in the
+      browser.</li>
+</ul>
+
+<h2 id="context">Context Help</h2>
+<p>Pressing <kbd>F1</kbd> (or <em>Help → Context Help</em>) opens this page at the
+section for the active view. Views without a dedicated section fall back to this one.</p>
+
+<h3 id="explorer">Project Explorer</h3>
+<p>The Project Explorer lists the registered projects and their files. Double-click a
+file to open it in an editor. The context menu offers: <em>Open</em> (files),
+<em>Copy Path</em> (clipboard), <em>Open Terminal</em> (folders and projects — a
+terminal in that directory), the unified contextual actions for projects (create
+session, close project, …), <em>Open Web Interface</em> and <em>Refresh</em>. Empty
+space shows <em>Open Project…</em>.</p>
+
+<h3 id="harness">Harnesses</h3>
+<p>The Harnesses view manages the coding-harness adapters registered with DStudio
+(DCode, OpenCode, Aider, Claude Code). You can select the default harness, enable or
+disable harnesses, run a live connection test and edit each harness configuration
+(model, provider type, auto-approve, …). Harness configuration is persisted in the
+database and shared with the headless server.</p>
+
+<h3 id="execution">Executions</h3>
+<p>The Executions view lists every coding execution (task) with its status, harness,
+provider, agent, model, project and progress. Buttons run a new task, cancel the
+selected one and refresh the list; double-clicking an execution shows its details and
+event history. Open executions are reconciled to <em>FAILED</em> on restart (they
+cannot be resumed).</p>
+
+<h3 id="inference">Inference Engines</h3>
+<p>The Inference Engines view manages the inference-engine adapters (ENR is the family
+default; Ollama, OpenAI-compatible and Anthropic are alternatives). Per engine you can
+select the default, enable/disable, test the connection, discover and load/unload
+models, and inspect the engine runtime status (CPU/memory/GPU). The web interface uses
+the same registry for the AI assistant.</p>
+
+<h3 id="agents">Agent Profiles</h3>
+<p>The Agent Profiles view manages reusable agent personas: system instructions, role,
+tool permissions, restrictions and the preferred harness/provider/model. Profiles are
+data, not adapters — create, edit, clone, import/export and delete them here; the
+compatibility check validates a profile against a concrete execution environment.
+Profiles are shared with the headless server and the TEIP surface.</p>
+
+<h3 id="review">Change Review</h3>
+<p>The Change Review view inspects the working-tree changes produced by an execution:
+select an execution, review each changed file with the compare editor, then accept or
+reject the changes. Decisions are persisted and visible to the execution history.</p>
+
+<h2 id="cli">CLI Commands (headless)</h2>
+<p>When DStudio runs headless (<code>-headless</code> or the <code>server</code>
+application) with a terminal attached — or with commands piped to stdin — it offers a
+small command line. A leading <code>/</code> is optional, commands are
+case-insensitive, and <code>exit</code>/<code>stop</code> (or end-of-input) shut the
+server down gracefully. The daemon flag (<code>-Ddstudio.daemon=true</code> or
+<code>--daemon</code>) keeps the server blocking on its latch regardless of stdin.</p>
+<pre><code>help [topic]                       Show the command list or detailed topic help.
+status                             Lifecycle stage, server address/port, web URL.
+web                                Print the web interface URL.
+terminal                           Print the workspace directory; open a terminal if possible.
+models list | models show &lt;id&gt;     List engines and their models, or show one model.
+sessions list | sessions show &lt;id&gt; | sessions cancel &lt;id&gt;
+                                   List, inspect or cancel harness executions.
+providers list | providers test &lt;id&gt;
+                                   List harness providers or test one connection.
+agents list                        List agent profiles.
+config show                        Show non-secret configuration values.
+logs show                          Show the most recent event-stream entries.
+stop                               Stop DStudio gracefully.
+exit                               Exit the CLI (shuts DStudio down like 'stop').
+</code></pre>
+<ul>
+  <li><code>status</code>/<code>web</code> resolve the port from the actually bound
+      server — the port is never hardcoded.</li>
+  <li><code>sessions</code> maps to the execution service: list, show and idempotent
+      cancel only (no delete/create).</li>
+  <li><code>providers</code> maps to the harness registry: DStudio's harness adapters
+      are the family's coding providers.</li>
+  <li><code>config show</code> never prints secrets (auth tokens are excluded).</li>
+  <li><code>logs show</code> tails the buffered event stream — the same stream served
+      live over SSE at <code>/api/events</code>.</li>
+  <li>Unknown commands suggest the nearest matches:
+      <code>Unknown command 'x'. Did you mean: …?</code></li>
+</ul>
+
+<h2 id="diagnostics">Diagnostics</h2>
+<p><code>/api/diagnostics</code> (JSON) reports the running instance: the harness
+registry (id, type, enablement, connection status and supported provider types) and
+the active executions. <code>/api/events</code> is the live SSE event stream carrying
+session/task/inference events with monotonically increasing sequence numbers; clients
+replay missed events with <code>?afterSequence=…</code>. Both endpoints require the
+bearer token unless dev mode is enabled (<code>dstudio.teip.devMode=true</code>).
+<code>/api/status</code> reports application, version and readiness.</p>
+<p class="note">DStudio diagnostics port <code>48180</code> is reserved by the family
+convention (family +10000); this build serves diagnostics on the primary TEIP port as
+documented above.</p>
+
+<a class="back" href="#top">↑ Back to top</a>
+</main>
+</body>
+</html>
