@@ -1,0 +1,12 @@
+Nov 21, 2026 9:37:18 AM ai.enr.runtime.ModelManager load
+INFO: Loaded model evo from /home/petr/git/evo-native-runtime-161126/enr-model-loader/src/test/resources/models/evo.gguf on backend cpu (53952 params, 0 MB)
+Nov 21, 2026 9:37:18 AM ai.enr.runtime.ModelManager load
+INFO: Loaded model tiny-evo from /home/petr/git/evo-native-runtime-161126/enr-model-loader/src/test/resources/models/tiny-evo.gguf on backend cpu (920 params, 0 MB)
+Nov 21, 2026 9:37:18 AM ai.enr.server.EnrServer start
+INFO: ENR HTTP server listening on /127.0.0.1:18999
+Nov 21, 2026 10:36:58 AM ai.enr.runtime.ModelManager load
+INFO: Loaded model evo from /home/petr/git/evo-native-runtime-161126/enr-model-loader/src/test/resources/models/evo.gguf on backend cpu (53952 params, 0 MB)
+Nov 21, 2026 10:36:58 AM ai.enr.runtime.ModelManager load
+INFO: Loaded model tiny-evo from /home/petr/git/evo-native-runtime-161126/enr-model-loader/src/test/resources/models/tiny-evo.gguf on backend cpu (920 params, 0 MB)
+Nov 21, 2026 10:36:58 AM ai.enr.server.EnrServer start
+INFO: ENR HTTP server listening on /127.0.0.1:18999

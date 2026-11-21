@@ -53,6 +53,11 @@
               name="Inference Engines"
               restorable="true"/>
       <view
+              class="eu.kalafatic.dstudio.ui.inference.ModelManagerView"
+              id="eu.kalafatic.dstudio.ui.view.modelmanager"
+              name="Model Manager"
+              restorable="true"/>
+      <view
               class="eu.kalafatic.dstudio.ui.agent.AgentView"
               id="eu.kalafatic.dstudio.ui.view.agents"
               name="Agent Profiles"

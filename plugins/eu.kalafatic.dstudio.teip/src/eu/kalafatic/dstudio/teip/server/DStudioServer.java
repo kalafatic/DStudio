@@ -159,6 +159,12 @@ public class DStudioServer {
                 server.createContext(INFERENCE_PATH,
                         new InferenceHttpHandler(inferenceEngineRegistry, inferenceService,
                                 engineFactory, devModeConfigured));
+                // Unified model management (provider pull/list/remove + shared
+                // download jobs), delegated to the family ENR service. Served to
+                // both the web UI and the RCP Model Manager view.
+                server.createContext(ModelManagementHttpHandler.PATH,
+                        new ModelManagementHttpHandler(inferenceEngineRegistry,
+                                devModeConfigured));
             }
             // Phase 7: global SSE channel for live session/task/inference events.
             if (eventStream != null) {

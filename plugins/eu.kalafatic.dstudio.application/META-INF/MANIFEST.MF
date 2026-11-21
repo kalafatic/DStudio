@@ -21,4 +21,5 @@ Import-Package: org.eclipse.equinox.p2.core,
  org.eclipse.equinox.p2.repository.metadata
 Export-Package: eu.kalafatic.dstudio.application,
  eu.kalafatic.dstudio.application.cli,
- eu.kalafatic.dstudio.application.lifecycle
+ eu.kalafatic.dstudio.application.lifecycle,
+ eu.kalafatic.dstudio.application.models

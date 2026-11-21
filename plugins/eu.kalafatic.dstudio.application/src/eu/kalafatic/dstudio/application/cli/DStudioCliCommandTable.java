@@ -39,6 +39,12 @@ public final class DStudioCliCommandTable {
                     "Show non-secret configuration values.", "config", false),
             new Command("logs", "logs show",
                     "Show the most recent event-stream entries.", "logs", false),
+            new Command("start", "start",
+                    "Ensure the DStudio server is running (starts automatically).",
+                    "start", false),
+            new Command("restart", "restart",
+                    "Restart the TEIP/API server on its configured port.",
+                    "restart", false),
             new Command("stop", "stop", "Stop DStudio gracefully.", "stop", true),
             new Command("exit", "exit", "Exit the CLI (interactive REPL only).",
                     "exit", true));
@@ -117,6 +123,19 @@ public final class DStudioCliCommandTable {
                   Prints the most recent entries of the buffered event stream (up to the
                   stream capacity). The same stream is served live over SSE at
                   /api/events.
+                """);
+        topics.put("start", """
+                start
+                  The DStudio server starts automatically with the application (desktop
+                  or headless). This command verifies the server; when it is not running
+                  it is started on the configured port.
+                """);
+        topics.put("restart", """
+                restart
+                  Stops the running TEIP/API server and starts a new one on the same
+                  configured port (the same restart path the desktop application uses
+                  for port-conflict resolution). The port is resolved from the live
+                  server — it is never hardcoded.
                 """);
         topics.put("stop", """
                 stop

@@ -643,3 +643,174 @@ document.addEventListener("keydown", (event) => {
   connectEvents();
   setInterval(refreshStatus, 10000);
 })();
+
+/* ---------- model manager (shared ENR model management service) ---------- */
+(function () {
+  "use strict";
+  const POLL_MS = 1000;
+  let pollTimer = null;
+
+  function el(tag, attrs, text) {
+    const node = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k === "style") { Object.assign(node.style, v); }
+      else { node.setAttribute(k, v); }
+    }
+    if (text != null) { node.textContent = text; }
+    return node;
+  }
+
+  function fmtBytes(n) {
+    if (n == null || n <= 0) { return "—"; }
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let i = 0, v = n;
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    return v.toFixed(v >= 100 || i === 0 ? 0 : 1) + " " + units[i];
+  }
+
+  async function refreshProviders() {
+    const select = $("mmProvider");
+    if (!select) { return; }
+    try {
+      const data = await api("/api/models/providers");
+      const providers = (data.providers || []).filter((p) =>
+        (p.capabilities || []).includes("MODEL_PULL"));
+      select.innerHTML = "";
+      for (const provider of providers) {
+        const option = document.createElement("option");
+        option.value = provider.id;
+        option.textContent = provider.display_name + " (" + provider.id + ")";
+        select.appendChild(option);
+      }
+      if (!providers.length) {
+        $("mmStatus").textContent = "No model providers registered in ENR "
+          + "(check enr.yaml model_providers).";
+        return;
+      }
+      select.onchange = () => refreshInstalled();
+      await refreshInstalled();
+    } catch (e) {
+      $("mmStatus").textContent = "Providers unavailable: " + e.message;
+    }
+  }
+
+  async function refreshInstalled() {
+    const box = $("mmInstalled");
+    const provider = $("mmProvider").value;
+    if (!box || !provider) { return; }
+    box.innerHTML = "";
+    box.appendChild(el("div", {}, "Installed — " + provider));
+    try {
+      const data = await api("/api/models/providers/"
+        + encodeURIComponent(provider) + "/installed");
+      const models = data.models || [];
+      if (!models.length) {
+        box.appendChild(el("div", { class: "muted" }, "No installed models."));
+        return;
+      }
+      for (const model of models) {
+        const row = el("div", { style: { marginTop: "4px" } });
+        const label = el("span", {},
+          model.id + (model.size_bytes > 0 ? " · " + fmtBytes(model.size_bytes) : ""));
+        row.appendChild(label);
+        const remove = el("button", {}, "Remove");
+        remove.style.marginLeft = "6px";
+        remove.onclick = async () => {
+          if (!confirm("Remove " + model.id + " from " + provider + "?")) { return; }
+          try {
+            await api("/api/models/providers/" + encodeURIComponent(provider)
+              + "/" + encodeURIComponent(model.id), { method: "DELETE" });
+            $("mmStatus").textContent = "Removed " + model.id;
+            refreshInstalled();
+          } catch (e) {
+            $("mmStatus").textContent = "Remove failed: " + e.message;
+          }
+        };
+        row.appendChild(remove);
+        box.appendChild(row);
+      }
+    } catch (e) {
+      box.appendChild(el("div", { class: "muted" }, "Unavailable: " + e.message));
+    }
+  }
+
+  async function refreshDownloads() {
+    const box = $("mmDownloads");
+    if (!box) { return; }
+    try {
+      const data = await api("/api/models/jobs");
+      const active = (data.downloads || []).filter((job) =>
+        !["COMPLETED", "FAILED", "CANCELLED"].includes(job.status));
+      box.innerHTML = "";
+      if (!active.length) { return; }
+      box.appendChild(el("div", {}, "Active downloads"));
+      for (const job of active) {
+        const pct = job.total_bytes > 0
+          ? Math.min(100, Math.round(job.completed_bytes * 100 / job.total_bytes)) : null;
+        const row = el("div", { style: { marginTop: "6px" } });
+        row.appendChild(el("div", {},
+          job.provider + " / " + job.model + " — " + job.status
+          + (job.operation ? " (" + job.operation + ")" : "")
+          + (pct != null ? " " + pct + "% (" + fmtBytes(job.completed_bytes)
+            + " / " + fmtBytes(job.total_bytes) + ")" : "")));
+        const bar = el("div", { style: { height: "6px", background: "#2a2f3a",
+          borderRadius: "3px", overflow: "hidden", marginTop: "2px" } });
+        const fill = el("div", { style: { height: "100%", width: (pct || 0) + "%",
+          background: "#4f8cff" } });
+        bar.appendChild(fill);
+        row.appendChild(bar);
+        const cancel = el("button", {}, "Cancel");
+        cancel.style.marginTop = "2px";
+        cancel.onclick = async () => {
+          try {
+            await api("/api/models/jobs/" + encodeURIComponent(job.job_id),
+              { method: "DELETE" });
+            $("mmStatus").textContent = "Cancel requested for job " + job.job_id;
+          } catch (e) {
+            $("mmStatus").textContent = "Cancel failed: " + e.message;
+          }
+        };
+        row.appendChild(cancel);
+        if (job.error) { row.appendChild(el("div", { class: "muted" }, job.error)); }
+        box.appendChild(row);
+      }
+    } catch (e) {
+      /* backend unreachable: keep previous content */
+    }
+  }
+
+  function startPolling() {
+    if (pollTimer) { clearInterval(pollTimer); }
+    pollTimer = setInterval(refreshDownloads, POLL_MS);
+  }
+
+  $("mmPullBtn").addEventListener("click", async () => {
+    const provider = $("mmProvider").value;
+    const model = $("mmModel").value.trim();
+    if (!provider) { $("mmStatus").textContent = "No provider selected."; return; }
+    if (!model) { $("mmStatus").textContent = "Enter a model identifier."; return; }
+    $("mmStatus").textContent = "";
+    $("mmPullBtn").disabled = true;
+    try {
+      const job = await api("/api/models/providers/" + encodeURIComponent(provider)
+        + "/pull", { method: "POST", body: JSON.stringify({ model }) });
+      $("mmStatus").textContent = "Pull queued: " + model + " (job " + job.jobId + ")";
+      $("mmModel").value = "";
+      await refreshDownloads();
+    } catch (e) {
+      $("mmStatus").textContent = "Pull failed: " + e.message;
+    } finally {
+      $("mmPullBtn").disabled = false;
+    }
+  });
+
+  $("mmRefreshBtn").addEventListener("click", () => {
+    $("mmStatus").textContent = "";
+    refreshProviders();
+    refreshDownloads();
+  });
+
+  refreshProviders();
+  refreshDownloads();
+  startPolling();
+})();

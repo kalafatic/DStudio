@@ -12,6 +12,7 @@
   <button id="openProjectBtn" title="Open a folder or repository as a DStudio project">Open Project…</button>
   <select id="projectSelect" title="Active project"></select>
   <button id="refreshBtn" title="Refresh projects and tree">Refresh</button>
+  <a id="helpBtn" href="/help.html" target="_blank" rel="noopener" title="Help and documentation">Help</a>
   <span id="statusDot" class="dot unknown" title="Backend status"></span>
 </header>
 <div id="layout">
@@ -32,6 +33,20 @@
       </div>
       <div id="chatLog"></div>
       <textarea id="chatInput" rows="2" placeholder="Ask the selected model… (Enter to send)"></textarea>
+    </div>
+    <div class="panel" id="modelManagerPanel">
+      <div class="panelTitle">Model Manager</div>
+      <div class="aiRow">
+        <select id="mmProvider"></select>
+        <input id="mmModel" type="text" placeholder="model id, e.g. qwen3-vl:30b">
+      </div>
+      <div class="aiRow">
+        <button id="mmPullBtn">Pull Model</button>
+        <button id="mmRefreshBtn">Refresh</button>
+      </div>
+      <div id="mmStatus"></div>
+      <div id="mmDownloads"></div>
+      <div id="mmInstalled"></div>
     </div>
     <div class="panel" id="taskPanel">
       <div class="panelTitle">Coding Task</div>

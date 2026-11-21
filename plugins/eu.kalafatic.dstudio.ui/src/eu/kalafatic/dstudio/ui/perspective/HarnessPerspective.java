@@ -4,6 +4,7 @@ import eu.kalafatic.dstudio.ui.agent.AgentView;
 import eu.kalafatic.dstudio.ui.execution.ExecutionView;
 import eu.kalafatic.dstudio.ui.harness.HarnessView;
 import eu.kalafatic.dstudio.ui.inference.InferenceView;
+import eu.kalafatic.dstudio.ui.inference.ModelManagerView;
 import org.eclipse.ui.IFolderLayout;
 import org.eclipse.ui.IPageLayout;
 import org.eclipse.ui.IPerspectiveFactory;
@@ -20,6 +21,7 @@ public class HarnessPerspective implements IPerspectiveFactory {
                 IPageLayout.LEFT, 0.30f, editorArea);
         left.addView(HarnessView.VIEW_ID);
         left.addView(InferenceView.VIEW_ID);
+        left.addView(ModelManagerView.VIEW_ID);
         left.addView(AgentView.VIEW_ID);
         IFolderLayout right = layout.createFolder("right",
                 IPageLayout.RIGHT, 0.45f, editorArea);

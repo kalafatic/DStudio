@@ -18,6 +18,11 @@ button, select, textarea {
 }
 button:hover { background: #3a3e52; cursor: pointer; }
 button:disabled { opacity: 0.5; cursor: default; }
+#helpBtn {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 4px; padding: 4px 8px; font: inherit; text-decoration: none; cursor: pointer;
+}
+#helpBtn:hover { background: #3a3e52; }
 #projectSelect { min-width: 200px; flex: 1; }
 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .dot.unknown { background: #9aa0b0; } .dot.up { background: var(--ok); } .dot.down { background: var(--err); }

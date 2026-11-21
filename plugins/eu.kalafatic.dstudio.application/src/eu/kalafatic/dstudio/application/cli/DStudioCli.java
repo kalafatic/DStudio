@@ -98,6 +98,8 @@ public final class DStudioCli {
             case "agents" -> agents(args);
             case "config" -> config(args);
             case "logs" -> logs(args);
+            case "start" -> start();
+            case "restart" -> restart();
             case "stop" -> out.println("Stopping DStudio…");
             case "exit" -> out.println("Exiting the DStudio CLI.");
             default -> {
@@ -439,6 +441,40 @@ public final class DStudioCli {
         for (EventEntry entry : entries) {
             out.println(entry.sequence() + " " + entry.timestamp() + " " + entry.type()
                     + ": " + truncate(String.valueOf(entry.payload()), 160));
+        }
+    }
+
+    private void start() {
+        if (coordinator == null) {
+            out.println("Lifecycle coordinator unavailable.");
+            return;
+        }
+        DStudioServer server = coordinator.getServer();
+        if (server != null && server.isRunning()) {
+            out.println("DStudio server already running on " + bindAddress() + ":"
+                    + boundPort() + ".");
+            return;
+        }
+        try {
+            coordinator.restartServerOnPort(boundPort());
+            out.println("DStudio server started on " + bindAddress() + ":"
+                    + boundPort() + ".");
+        } catch (RuntimeException e) {
+            out.println("Failed to start DStudio server: " + e.getMessage());
+        }
+    }
+
+    private void restart() {
+        if (coordinator == null) {
+            out.println("Lifecycle coordinator unavailable.");
+            return;
+        }
+        try {
+            coordinator.restartServerOnPort(boundPort());
+            out.println("DStudio server restarted on " + bindAddress() + ":"
+                    + boundPort() + ".");
+        } catch (RuntimeException e) {
+            out.println("Failed to restart DStudio server: " + e.getMessage());
         }
     }
 

@@ -65,6 +65,20 @@ class DStudioCliTest {
     }
 
     @Test
+    void mandatoryFamilyVocabularyIsRegistered() {
+        Set<String> names = new HashSet<>();
+        for (DStudioCliCommandTable.Command command : DStudioCliCommandTable.COMMANDS) {
+            names.add(command.name());
+        }
+        for (String required : new String[] {"help", "status", "start", "stop",
+                "restart", "web", "terminal", "models", "sessions", "providers",
+                "agents", "config", "logs", "exit"}) {
+            assertTrue(names.contains(required),
+                    "mandatory CLI command missing: " + required);
+        }
+    }
+
+    @Test
     void slashIsOptional() {
         StringWriter plain = new StringWriter();
         cli(plain).dispatch("help");
@@ -145,11 +159,21 @@ class DStudioCliTest {
         DStudioCli cli = cli(buffer);
         for (String command : new String[] {"status", "web", "help", "config show",
                 "logs show", "agents list", "sessions list", "models list",
-                "providers list"}) {
+                "providers list", "start", "restart"}) {
             assertTrue(cli.dispatch(command), "command should keep the session: "
                     + command);
         }
         assertNotEquals(0, buffer.toString().length());
+    }
+
+    @Test
+    void startAndRestartReportUnavailableWithoutCoordinator() {
+        StringWriter buffer = new StringWriter();
+        DStudioCli cli = cli(buffer);
+        assertTrue(cli.dispatch("start"));
+        assertTrue(cli.dispatch("restart"));
+        String output = buffer.toString();
+        assertTrue(output.contains("unavailable"), output);
     }
 
     @Test
