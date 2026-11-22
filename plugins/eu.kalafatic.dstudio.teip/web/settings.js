@@ -4,9 +4,8 @@
 
   const { $, detect, productName, providers, models, allModels, projects, openProject,
           harnesses, scanProviders, testProvider, applyDefaults, json,
-          bridgeAvailable, bridgeCall } = window.Inference;
-
-  const THEME_KEY = "inference.theme.v1";
+          bridgeAvailable, bridgeCall, esc, formatBytes, fillSelect, toast,
+          applyTheme } = window.Inference;
 
   const state = {
     backend: null,
@@ -19,22 +18,7 @@
     selection: { providerId: "", modelId: "", harnessId: "", agentProfileId: "" }
   };
 
-  // ---- helpers ----
-
-  function esc(value) {
-    return String(value == null ? "" : value)
-        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-
-  let toastTimer = null;
-  function toast(text, isError) {
-    const el = $("toast");
-    el.textContent = text;
-    el.className = "toast" + (isError ? " error" : "");
-    el.hidden = false;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.hidden = true; }, 4200);
-  }
+  // ---- helpers (esc/toast/formatBytes/fillSelect/applyTheme come from common.js) ----
 
   function banner(text, kind) {
     const el = $("banner");
@@ -45,9 +29,9 @@
   }
 
   function setConnection(kind, text) {
-    const el = $("connStatus");
-    el.className = "conn " + kind;
-    el.textContent = "\u25CF " + text;
+    const dot = $("dot");
+    dot.className = "dot" + (kind === "online" ? " ok" : kind === "offline" ? " err" : "");
+    $("connText").textContent = text;
   }
 
   function badge(status) {
@@ -60,47 +44,7 @@
     return "<span class=\"badge" + cls + "\">" + esc(value || "—") + "</span>";
   }
 
-  function formatBytes(n) {
-    if (!n || n <= 0) { return ""; }
-    const units = ["B", "KB", "MB", "GB", "TB"];
-    let value = n, index = 0;
-    while (value >= 1024 && index < units.length - 1) { value /= 1024; index++; }
-    return value.toFixed(value >= 100 || index === 0 ? 0 : 1) + " " + units[index];
-  }
-
-  function applyTheme() {
-    let theme = "dark";
-    try { theme = localStorage.getItem(THEME_KEY) || "dark"; } catch (e) { /* ignore */ }
-    document.documentElement.dataset.theme = theme;
-    $("themeBtn").onclick = () => {
-      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-      document.documentElement.dataset.theme = next;
-      try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* ignore */ }
-    };
-  }
-
   // ---- selects ----
-
-  function fillSelect(select, items, selectedId, emptyLabel) {
-    select.innerHTML = "";
-    if (!items.length) {
-      const option = document.createElement("option");
-      option.value = "";
-      option.textContent = emptyLabel || "—";
-      select.appendChild(option);
-      return;
-    }
-    for (const item of items) {
-      const option = document.createElement("option");
-      option.value = item.id;
-      option.textContent = item.label;
-      if (item.providerId) { option.dataset.providerId = item.providerId; }
-      select.appendChild(option);
-    }
-    if (selectedId && items.some((item) => item.id === selectedId)) {
-      select.value = selectedId;
-    }
-  }
 
   function renderProviderSelect() {
     const items = state.providers.map((p) => ({
@@ -369,11 +313,10 @@
 
   function wire() {
     $("retryBtn").onclick = () => boot(true);
-    $("tokenBtn").onclick = () => {
-      const current = window.Inference.token();
-      const value = window.prompt("Bearer token (leave empty to clear)", current || "");
+    $("tokenBtn").onclick = async () => {
+      const value = await window.Inference.askToken(window.Inference.token());
       if (value === null) { return; }
-      window.Inference.setToken(value.trim());
+      window.Inference.setToken(value);
       boot(true);
     };
     $("providerSelect").onchange = () => {
@@ -415,25 +358,25 @@
   }
 
   async function boot(verbose) {
-    applyTheme();
+    applyTheme("btn-theme");
     wire();
-    setConnection("offline", "connecting");
+    setConnection("reconnecting", "connecting…");
     banner("");
     try {
       state.backend = await detect();
     } catch (e) {
-      setConnection("offline", "offline");
+      setConnection("offline", e.message);
       $("cState").textContent = "unreachable";
       banner("Cannot reach the backend (" + e.message + "). Use Retry to reload.", "err");
       return;
     }
     const product = productName(state.backend);
-    $("brandName").textContent = product + " Settings";
+    $("brandName").textContent = product;
     document.title = product + " Settings";
     $("cState").textContent = "UP";
     $("cEndpoint").textContent = window.location.origin;
     $("cBackend").textContent = String((state.media.application || "DSTUDIO"));
-    setConnection("online", product + " connected");
+    setConnection("online", "READY · " + window.location.origin);
     try {
       const health = await json("/api/status");
       state.media = health || {};

@@ -10,74 +10,114 @@
 <header id="topbar">
   <div class="brand">
     <span class="brand-mark">&#9672;</span>
-    <span id="brandName">DStudio</span>
-    <span class="brand-sub" id="brandSub">inference</span>
+    <span class="brand-name">DStudio</span>
+    <span class="brand-sub">Darwin Studio</span>
   </div>
-  <div class="spacer"></div>
-  <span id="connStatus" class="conn offline" title="Backend status">&#9679; connecting</span>
-  <a class="btn" href="settings.html" title="Providers, models, projects and harnesses">Settings</a>
-  <a class="btn" href="help.html" target="_blank" rel="noopener" title="Help and documentation">Help</a>
-  <button id="themeBtn" class="btn" title="Toggle light/dark theme">theme</button>
+  <div class="topbar-center">
+    <span id="top-project" class="top-item">no project</span>
+    <span id="top-engine" class="top-item">no engine</span>
+    <span id="top-model" class="top-item">no model</span>
+  </div>
+  <div class="topbar-right">
+    <span id="connection-status" class="conn conn-disconnected" title="Backend connection">&#9679; offline</span>
+    <button id="btn-conn" class="btn btn-small" title="Connection diagnostics">connection</button>
+    <button id="btn-auth" class="btn btn-small" title="Set server bearer token">auth</button>
+    <a id="btn-settings" class="btn btn-small" href="settings.html" title="Providers, models, projects, harnesses">settings</a>
+    <button id="btn-theme" class="btn btn-small" title="Toggle light/dark theme">theme</button>
+    <a id="btn-help" class="btn btn-small" href="help.html" target="_blank" rel="noopener" title="Help and documentation">help</a>
+  </div>
 </header>
 
-<div id="layout">
-  <aside id="sidebar">
-    <div class="panel">
-      <div class="panel-head">
-        <span>Conversations</span>
-        <button id="newChatBtn" class="btn small">New</button>
-      </div>
-      <div id="conversationList" class="list"></div>
-    </div>
-    <div class="panel">
-      <div class="panel-head"><span>Context</span></div>
-      <label class="field"><span>Project</span>
-        <select id="projectSelect"><option value="">(none)</option></select>
-      </label>
-      <label class="field" id="harnessField"><span>Harness</span>
-        <select id="harnessSelect"><option value="">(none)</option></select>
-      </label>
-      <div class="muted" id="contextHint">Projects and harnesses are managed in Settings.</div>
-    </div>
+<div id="main">
+  <aside id="left-panel">
+    <nav id="left-nav">
+      <button class="nav-btn active" data-view="inference">Inference</button>
+      <button class="nav-btn" data-view="sessions">Sessions</button>
+      <button class="nav-btn" data-view="tasks">Tasks</button>
+      <button class="nav-btn" data-view="engines">Engines</button>
+      <button class="nav-btn" data-view="models">Models</button>
+      <button class="nav-btn" data-view="harnesses">Harnesses</button>
+    </nav>
+    <div id="left-content"></div>
   </aside>
 
-  <main id="main">
-    <div id="toolbar">
-      <label class="inline"><span>Provider</span>
-        <select id="providerSelect"><option value="">loading…</option></select>
-      </label>
-      <label class="inline"><span>Model</span>
-        <select id="modelSelect"><option value="">loading…</option></select>
-      </label>
-      <button id="refreshBtn" class="btn small" title="Reload providers and models">Refresh</button>
-      <span class="spacer"></span>
-      <span id="modelMeta" class="muted"></span>
-    </div>
-
-    <div id="chatLog" class="chat">
-      <div class="empty">
-        <div class="empty-title">Select a provider and model to start.</div>
-        <div class="empty-text">Conversations run against the same authoritative backend
-          that the desktop IDE uses. Provider, model, project and harness configuration
-          live in the Settings tab.</div>
+  <section id="work-area">
+    <div id="tabs-bar">
+      <div class="tab active" data-tab="inference">
+        <span id="tabTitle">Inference</span>
+        <span class="tab-close" id="tabClose" title="Close tab">&#10005;</span>
       </div>
     </div>
-
-    <div id="composer">
-      <textarea id="promptInput" rows="3"
-        placeholder="Ask the selected model… (Enter to send, Shift+Enter for a newline)"></textarea>
-      <div class="composer-actions">
-        <span id="sendStatus" class="muted"></span>
-        <span class="spacer"></span>
-        <button id="cancelBtn" class="btn danger" hidden>Cancel</button>
-        <button id="sendBtn" class="btn primary">Send</button>
+    <div id="tab-content">
+      <div id="inference-pane" class="pane active">
+        <div id="toolbar">
+          <label class="inline"><span>Provider</span>
+            <select id="providerSelect"><option value="">loading…</option></select>
+          </label>
+          <label class="inline"><span>Model</span>
+            <select id="modelSelect"><option value="">loading…</option></select>
+          </label>
+          <button id="refreshBtn" class="btn btn-small" title="Reload providers and models">refresh</button>
+          <span class="spacer"></span>
+          <span id="modelMeta" class="top-item"></span>
+        </div>
+        <div id="chatLog" class="chat">
+          <div class="placeholder">
+            <div class="placeholder-title">Start a conversation</div>
+            <div class="placeholder-text">Choose a provider and model above, then send a prompt.
+              Engines, models, projects and harnesses are configured in the Settings tab.</div>
+          </div>
+        </div>
+        <div id="composer">
+          <textarea id="promptInput" rows="3"
+            placeholder="Ask the selected model… (Enter to send, Shift+Enter for a newline)"></textarea>
+          <div class="composer-actions">
+            <span id="sendStatus" class="muted"></span>
+            <span class="spacer"></span>
+            <button id="cancelBtn" class="btn btn-danger" hidden>cancel</button>
+            <button id="sendBtn" class="btn btn-primary">send</button>
+          </div>
+        </div>
+      </div>
+      <div id="no-tab" class="placeholder" hidden>
+        <div class="placeholder-title">No tab open</div>
+        <div class="placeholder-text">Open the inference workspace from the left panel.</div>
+        <button id="openInferenceBtn" class="btn">Open Inference</button>
       </div>
     </div>
-  </main>
+  </section>
+
+  <aside id="right-panel">
+    <div class="panel-title">Context</div>
+    <div id="right-content" class="panel-scroll">
+      <div class="empty-note">Select a session, project, engine, model or harness for details.</div>
+    </div>
+  </aside>
 </div>
+
+<footer id="bottom-panel">
+  <div class="bottom-tabs">
+    <button class="bottom-tab active" data-panel="console">Console</button>
+    <button class="bottom-tab" data-panel="events">Events</button>
+    <button class="bottom-tab" data-panel="problems">Problems</button>
+    <span class="spacer"></span>
+    <div id="console-controls" class="console-controls">
+      <button class="console-chip" id="chip-autoscroll">Auto-scroll</button>
+      <button class="console-chip" id="chip-clear">Clear</button>
+      <button class="console-chip" id="chip-copy">Copy</button>
+      <button class="console-chip" id="chip-export">Export</button>
+    </div>
+  </div>
+  <div id="bottom-content">
+    <div id="panel-console" class="bottom-pane active"></div>
+    <div id="panel-events" class="bottom-pane"></div>
+    <div id="panel-problems" class="bottom-pane"></div>
+  </div>
+</footer>
 
 <div id="toast" class="toast" hidden></div>
 <script src="common.js"></script>
+<script src="tasks.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

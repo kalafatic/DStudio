@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * DStudio backend HTTP server: the TEIP 1.1 provider surface plus the DStudio API
@@ -125,6 +126,9 @@ public class DStudioServer {
                 }
                 Map<String, Object> body = new LinkedHashMap<>();
                 body.put("application", "DSTUDIO");
+                Optional<String> selected = harnessRegistry == null
+                        ? Optional.empty() : harnessRegistry.getSelectedDefaultHarnessId();
+                body.put("defaultHarness", selected.orElse(""));
                 body.put("harnesses", harnessRegistry == null ? List.of()
                         : harnessRegistry.listHarnesses().stream()
                                 .map(h -> {
@@ -132,6 +136,8 @@ public class DStudioServer {
                                     entry.put("id", h.getId());
                                     entry.put("type", h.getType());
                                     entry.put("enabled", h.isEnabled());
+                                    entry.put("default",
+                                            h.getId().equals(selected.orElse("")));
                                     entry.put("status", h.getStatus().name());
                                     // harness/runtime compatibility: provider types this
                                     // harness can actually run on (never shown as

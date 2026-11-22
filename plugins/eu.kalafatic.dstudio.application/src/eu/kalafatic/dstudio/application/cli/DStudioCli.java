@@ -11,6 +11,9 @@ import eu.kalafatic.dstudio.core.harness.HarnessRegistry;
 import eu.kalafatic.dstudio.core.inference.InferenceEngineAdapter;
 import eu.kalafatic.dstudio.core.inference.InferenceEngineDescriptor;
 import eu.kalafatic.dstudio.core.inference.InferenceEngineRegistry;
+import eu.kalafatic.dstudio.core.inference.InferenceService;
+import eu.kalafatic.dstudio.core.inference.InferenceSession;
+import eu.kalafatic.dstudio.core.inference.InferenceSessionMessage;
 import eu.kalafatic.dstudio.core.model.ExecutionTask;
 import eu.kalafatic.dstudio.core.model.HarnessDescriptor;
 import eu.kalafatic.dstudio.core.service.ExecutionService;
@@ -94,6 +97,7 @@ public final class DStudioCli {
             case "terminal" -> terminal();
             case "models" -> models(args);
             case "sessions" -> sessions(args);
+            case "chat" -> chat(args);
             case "providers" -> providers(args);
             case "agents" -> agents(args);
             case "config" -> config(args);
@@ -312,6 +316,136 @@ public final class DStudioCli {
                         + "terminal executions are unchanged).");
             }
             default -> usage("sessions");
+        }
+    }
+
+    /**
+     * One-shot streaming chat through the shared inference service — the same
+     * service and SQLite session store the web interface and RCP use. The
+     * subcommands list/show expose the persisted inference sessions of every
+     * client; nothing is mocked or frontend-only.
+     */
+    private void chat(String[] args) {
+        if (args.length == 0) {
+            usage("chat");
+            return;
+        }
+        if ("list".equalsIgnoreCase(args[0])) {
+            chatList();
+            return;
+        }
+        if ("show".equalsIgnoreCase(args[0])) {
+            chatShow(args.length > 1 ? args[1] : null);
+            return;
+        }
+        InferenceService service = coordinator == null ? null
+                : coordinator.getInferenceService();
+        if (service == null) {
+            out.println("Inference service unavailable.");
+            return;
+        }
+        String engineId = null;
+        String modelId = null;
+        List<String> promptParts = new ArrayList<>();
+        for (int i = 0; i < args.length; i++) {
+            if ("engine".equalsIgnoreCase(args[i]) && i + 1 < args.length) {
+                engineId = args[++i];
+            } else if ("model".equalsIgnoreCase(args[i]) && i + 1 < args.length) {
+                modelId = args[++i];
+            } else {
+                promptParts.add(args[i]);
+            }
+        }
+        String prompt = String.join(" ", promptParts).trim();
+        if (prompt.isEmpty()) {
+            usage("chat");
+            return;
+        }
+        if (engineId == null || engineId.isBlank()) {
+            InferenceEngineRegistry registry = coordinator.getInferenceEngineRegistry();
+            engineId = registry == null ? ""
+                    : registry.getSelectedDefaultEngineId().orElse("");
+        }
+        if (engineId.isBlank()) {
+            out.println("No inference engine selected. Use 'models list' and specify "
+                    + "'engine <id>'.");
+            return;
+        }
+        if (modelId == null || modelId.isBlank()) {
+            DStudioConfiguration config = coordinator.getConfiguration();
+            modelId = config == null ? "" : config.defaultModel();
+        }
+        if (modelId.isBlank()) {
+            out.println("No model given. Specify 'model <id>' (or set the default model "
+                    + "in the configuration).");
+            return;
+        }
+        try {
+            InferenceSession session = service.createSession(engineId, modelId, "",
+                    "cli-chat");
+            out.println("session " + session.id() + " — streaming…");
+            service.streamMessage(session.id(), prompt, chunk -> {
+                if (chunk.text() != null) {
+                    out.print(chunk.text());
+                    out.flush();
+                }
+            });
+            out.println();
+            out.println("[done] session " + session.id());
+        } catch (Exception e) {
+            out.println("Chat failed: " + e.getMessage());
+        }
+    }
+
+    private void chatList() {
+        InferenceService service = coordinator == null ? null
+                : coordinator.getInferenceService();
+        if (service == null) {
+            out.println("Inference service unavailable.");
+            return;
+        }
+        List<InferenceSession> sessions = service.listSessions();
+        if (sessions.isEmpty()) {
+            out.println("No inference sessions recorded.");
+            return;
+        }
+        for (InferenceSession session : sessions) {
+            out.println(session.id() + "  " + session.status()
+                    + "  engine=" + session.engineId()
+                    + "  model=" + session.model()
+                    + "  created=" + session.createdAt()
+                    + (session.title() == null || session.title().isBlank() ? ""
+                            : "  \"" + truncate(session.title(), 48) + "\""));
+        }
+    }
+
+    private void chatShow(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            usage("chat");
+            return;
+        }
+        InferenceService service = coordinator == null ? null
+                : coordinator.getInferenceService();
+        if (service == null) {
+            out.println("Inference service unavailable.");
+            return;
+        }
+        Optional<InferenceSession> session = service.getSession(sessionId);
+        if (session.isEmpty()) {
+            out.println("Inference session '" + sessionId + "' not found.");
+            return;
+        }
+        InferenceSession s = session.get();
+        out.println("Id: " + s.id());
+        out.println("Status: " + s.status());
+        out.println("Engine: " + s.engineId());
+        out.println("Model: " + s.model());
+        out.println("Created: " + s.createdAt());
+        if (s.statusMessage() != null && !s.statusMessage().isBlank()) {
+            out.println("Status message: " + s.statusMessage());
+        }
+        for (InferenceSessionMessage message : service.getMessages(sessionId)) {
+            out.println("[" + message.role() + "] " + message.content());
         }
     }
 

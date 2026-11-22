@@ -1,17 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DStudio — Help</title>
+<link rel="stylesheet" href="style.css">
 <style>
-:root {
-  --bg: #1e1f26; --panel: #272933; --panel2: #2f323e; --text: #e2e4ec;
-  --dim: #9aa0b0; --accent: #4f8cff; --ok: #34c77b; --err: #e05c5c; --border: #3a3e4d;
-}
+/* Help-specific layout over the shared UPM design tokens in style.css. */
 * { box-sizing: border-box; }
 body {
-  margin: 0; font-family: "Segoe UI", "Ubuntu", sans-serif; font-size: 14px;
+  margin: 0; font-family: var(--sans, "Segoe UI", sans-serif); font-size: 14px;
   background: var(--bg); color: var(--text); line-height: 1.55;
 }
 header {
@@ -21,6 +19,7 @@ header {
 header h1 { font-size: 17px; margin: 0; font-weight: 600; }
 header nav a { color: var(--accent); text-decoration: none; margin-right: 14px; font-size: 13px; }
 header nav a:hover { text-decoration: underline; }
+header .spacer { flex: 1; }
 main { max-width: 900px; margin: 0 auto; padding: 18px 22px 60px; }
 h2 {
   font-size: 16px; color: var(--accent); border-bottom: 1px solid var(--border);
@@ -29,7 +28,7 @@ h2 {
 h3 { font-size: 14px; margin: 20px 0 6px; color: var(--text); }
 p { margin: 8px 0; }
 code, kbd, pre {
-  font-family: "DejaVu Sans Mono", monospace; font-size: 12.5px;
+  font-family: var(--mono); font-size: 12.5px;
   background: var(--panel2); border: 1px solid var(--border); border-radius: 4px;
   padding: 1px 5px;
 }
@@ -41,7 +40,7 @@ kbd {
 }
 ul { margin: 8px 0; padding-left: 22px; }
 li { margin: 4px 0; }
-.note { color: var(--dim); font-size: 13px; }
+.note { color: var(--muted); font-size: 13px; }
 .back { display: inline-block; margin-top: 22px; color: var(--accent); text-decoration: none; }
 .back:hover { text-decoration: underline; }
 </style>
@@ -57,6 +56,8 @@ li { margin: 4px 0; }
     <a href="#cli">CLI Commands</a>
     <a href="#diagnostics">Diagnostics</a>
   </nav>
+  <span class="spacer"></span>
+  <button id="btn-theme" class="btn btn-small" title="Toggle light/dark theme">theme</button>
 </header>
 <main>
 
@@ -102,6 +103,13 @@ and business state in <code>~/.dstudio/dstudio.db</code>; the Eclipse workspace 
 only the workbench layout.</p>
 
 <h2 id="shortcuts">Keyboard Shortcuts and Menu Structure</h2>
+<h3>Web interface shortcuts</h3>
+<ul>
+  <li><kbd>Enter</kbd> — send the prompt; <kbd>Shift</kbd>+<kbd>Enter</kbd> — newline.</li>
+  <li><kbd>Ctrl</kbd>+<kbd>K</kbd> / <kbd>⌘</kbd>+<kbd>K</kbd> — focus the prompt input.</li>
+  <li><kbd>Ctrl</kbd>+<kbd>N</kbd> / <kbd>⌘</kbd>+<kbd>N</kbd> — start a new conversation.</li>
+  <li><kbd>Esc</kbd> — cancel the running inference.</li>
+</ul>
 <h3>Global shortcuts</h3>
 <ul>
   <li><kbd>Ctrl</kbd>+<kbd>Enter</kbd> / <kbd>M1</kbd>+<kbd>Enter</kbd> — run the
@@ -229,5 +237,10 @@ documented above.</p>
 
 <a class="back" href="#top">↑ Back to top</a>
 </main>
+<script src="common.js"></script>
+<script>
+"use strict";
+window.Inference.applyTheme("btn-theme");
+</script>
 </body>
 </html>

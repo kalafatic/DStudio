@@ -20,7 +20,7 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * Family integration (Phase 8, §10): DStudio orchestrates DCode as its native EVO
  * Family coding harness through the FHC 1.0 contract. Requires a running DCode
- * headless server (default http://localhost:48080, override with
+ * headless server (default http://localhost:58080 — DCode owns the 58xxx block, override with
  * -Ddcode.live.endpoint=...). Skips silently when DCode is absent.
  *
  * <p>Verified live: DStudio creates a workspace/repository/session in DCode, DCode's
@@ -29,7 +29,7 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class DCodeFamilyIntegrationTest {
 
-    private static final String DEFAULT_ENDPOINT = "http://localhost:48080";
+    private static final String DEFAULT_ENDPOINT = "http://localhost:58080";
 
     @TempDir
     Path tempDir;

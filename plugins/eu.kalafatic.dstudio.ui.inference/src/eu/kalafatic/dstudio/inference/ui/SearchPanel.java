@@ -80,7 +80,10 @@ public final class SearchPanel {
         status.setForeground(parent.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
 
         parent.setVisible(false);
-        ((GridData) parent.getLayoutData()).exclude = true;
+        GridData parentData = parent.getLayoutData() instanceof GridData existing
+                ? existing : new GridData();
+        parentData.exclude = true;
+        parent.setLayoutData(parentData);
     }
 
     private void runSearch() {

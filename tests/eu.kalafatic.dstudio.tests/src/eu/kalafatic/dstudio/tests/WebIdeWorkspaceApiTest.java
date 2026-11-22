@@ -81,9 +81,13 @@ class WebIdeWorkspaceApiTest {
                 .contains("text/html"));
         HttpResponse<String> app = send("GET", "/web/app.js", null);
         assertEquals(200, app.statusCode());
-        assertTrue(app.body().contains("api/workspace"));
+        assertTrue(app.body().contains("Inference"), app.body());
         assertTrue(app.headers().firstValue("Content-Type").orElse("")
                 .contains("javascript"));
+        // The workspace API client lives in common.js (app.js consumes it).
+        HttpResponse<String> common = send("GET", "/web/common.js", null);
+        assertEquals(200, common.statusCode());
+        assertTrue(common.body().contains("api/workspace"));
         HttpResponse<String> css = send("GET", "/web/style.css", null);
         assertEquals(200, css.statusCode());
         HttpResponse<String> missing = send("GET", "/web/nope.js", null);

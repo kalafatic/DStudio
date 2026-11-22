@@ -32,6 +32,9 @@ public final class DStudioCliCommandTable {
                     "models", false),
             new Command("sessions", "sessions list|show <id>|cancel <id>",
                     "List, inspect or cancel harness executions.", "sessions", false),
+            new Command("chat", "chat \"prompt\" [engine <id>] [model <id>] | chat list | chat show <id>",
+                    "Stream a chat through the shared inference service, or manage its sessions.",
+                    "chat", false),
             new Command("providers", "providers list|test <id>",
                     "List harness providers or test a connection.", "providers", false),
             new Command("agents", "agents list", "List agent profiles.", "agents", false),
@@ -97,6 +100,18 @@ public final class DStudioCliCommandTable {
                 sessions cancel <id>
                   Requests cancellation of one execution. Cancellation is idempotent:
                   terminal executions are unchanged.
+                """);
+        topics.put("chat", """
+                chat "prompt" [engine <id>] [model <id>]
+                  Runs a streaming chat through the shared inference service (the same
+                  service and SQLite session store the web interface uses) and prints
+                  the assistant answer token by token. The engine defaults to the
+                  selected default engine, the model to the configured default model.
+                chat list
+                  Lists the persisted inference sessions of every client (web, RCP and
+                  CLI share the same store).
+                chat show <id>
+                  Shows one inference session with its full message history.
                 """);
         topics.put("providers", """
                 providers list

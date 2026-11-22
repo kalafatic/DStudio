@@ -9,15 +9,13 @@
 <body>
 <header id="topbar">
   <div class="brand">
-    <span class="brand-mark">&#9672;</span>
-    <span id="brandName">Settings</span>
-    <span class="brand-sub">configuration &amp; persistence</span>
+    <span class="logo">D</span>
+    <span id="brandName">DStudio</span>
+    <small>Settings &amp; persistence</small>
   </div>
   <div class="spacer"></div>
-  <span id="connStatus" class="conn offline" title="Backend status">&#9679; connecting</span>
-  <a class="btn" href="index.html" title="Back to inference">Inference</a>
-  <a class="btn" href="help.html" target="_blank" rel="noopener" title="Help and documentation">Help</a>
-  <button id="themeBtn" class="btn" title="Toggle light/dark theme">theme</button>
+  <div id="connChip"><span class="dot" id="dot"></span><span id="connText">connecting…</span></div>
+  <button id="btn-theme" class="btn btn-small" title="Toggle light/dark theme">theme</button>
 </header>
 
 <main>

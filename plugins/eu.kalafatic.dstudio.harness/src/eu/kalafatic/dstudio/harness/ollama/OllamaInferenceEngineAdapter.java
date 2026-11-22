@@ -259,12 +259,14 @@ public class OllamaInferenceEngineAdapter implements InferenceEngineAdapter {
         return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    /** Removes the {@code ollama:} engine prefix when present; bare model names
+     *  (including tagged ones like {@code llama3.2:latest}) pass through unchanged. */
     private static String strip(String modelId) {
         if (modelId == null) {
             return "";
         }
-        int colon = modelId.indexOf(':');
-        return colon > 0 ? modelId.substring(colon + 1) : modelId;
+        return modelId.startsWith(ENGINE_ID + ":")
+                ? modelId.substring(ENGINE_ID.length() + 1) : modelId;
     }
 
     private static String escape(String value) {

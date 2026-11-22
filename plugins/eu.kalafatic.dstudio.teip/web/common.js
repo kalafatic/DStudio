@@ -9,17 +9,131 @@ window.Inference = (function () {
   "use strict";
 
   const TOKEN_KEY = "dstudio.web.token";
+  const THEME_KEY = "dstudio.theme.v1";
   const state = { backend: "dstudio", meta: {} };
 
   function $(id) { return document.getElementById(id); }
 
+  // ---- shared UI helpers (used by index.html and settings.html) ----
+
+  function esc(value) {
+    return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function formatBytes(n) {
+    if (!n || n <= 0) { return ""; }
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let value = n, index = 0;
+    while (value >= 1024 && index < units.length - 1) { value /= 1024; index++; }
+    return value.toFixed(value >= 100 || index === 0 ? 0 : 1) + " " + units[index];
+  }
+
+  function fillSelect(select, items, selectedId, emptyLabel) {
+    select.innerHTML = "";
+    if (!items.length) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = emptyLabel || "—";
+      select.appendChild(option);
+      return;
+    }
+    for (const item of items) {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.textContent = item.label;
+      if (item.providerId) { option.dataset.providerId = item.providerId; }
+      select.appendChild(option);
+    }
+    if (selectedId && items.some((item) => item.id === selectedId)) {
+      select.value = selectedId;
+    }
+  }
+
+  let toastTimer = null;
+  function toast(text, isError) {
+    const el = $("toast");
+    if (!el) { return; }
+    el.textContent = text;
+    el.className = "toast" + (isError ? " error" : "");
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.hidden = true; }, 4200);
+  }
+
+  /** Applies the persisted theme; when buttonId is given the button becomes the toggle. */
+  function applyTheme(buttonId) {
+    let theme = "dark";
+    try { theme = localStorage.getItem(THEME_KEY) || "dark"; } catch (e) { /* ignore */ }
+    document.documentElement.dataset.theme = theme;
+    const button = buttonId ? $(buttonId) : null;
+    if (!button) { return; }
+    button.onclick = () => {
+      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* ignore */ }
+    };
+  }
+
+  /**
+   * Minimal, XSS-safe Markdown renderer for chat output: fenced code blocks,
+   * inline code, bold, italic, links, ordered/unordered lists and paragraphs.
+   * No external dependencies; everything is escaped before formatting.
+   */
+  function renderMarkdown(text) {
+    if (text == null) { return ""; }
+    let source = String(text);
+    const blocks = [];
+    source = source.replace(/```([\w+-]*)\n?([\s\S]*?)(```|$)/g, (match, lang, code) => {
+      blocks.push("<pre><code class=\"md-code\">" + esc(code.replace(/\n$/, ""))
+          + "</code></pre>");
+      return "\u0000B" + (blocks.length - 1) + "\u0000";
+    });
+    source = esc(source);
+    source = source.replace(/`([^`\n]+)`/g, "<code class=\"md-inline\">$1</code>");
+    source = source.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+    source = source.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
+    source = source.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+        "<a href=\"$2\" target=\"_blank\" rel=\"noopener\">$1</a>");
+    const lines = source.split("\n");
+    const html = [];
+    let list = null;
+    const closeList = () => {
+      if (list) { html.push(list === "ul" ? "</ul>" : "</ol>"); list = null; }
+    };
+    for (const line of lines) {
+      const block = /^\u0000B(\d+)\u0000$/.exec(line);
+      if (block) { closeList(); html.push(blocks[+block[1]]); continue; }
+      const ordered = /^(\d+)[.)]\s+(.+)$/.exec(line);
+      const bullet = /^[-*+]\s+(.+)$/.exec(line);
+      if (ordered) {
+        if (list !== "ol") { closeList(); html.push("<ol>"); list = "ol"; }
+        html.push("<li>" + ordered[2] + "</li>");
+        continue;
+      }
+      if (bullet) {
+        if (list !== "ul") { closeList(); html.push("<ul>"); list = "ul"; }
+        html.push("<li>" + bullet[1] + "</li>");
+        continue;
+      }
+      closeList();
+      if (!line.trim()) { html.push(""); continue; }
+      html.push("<p>" + line + "</p>");
+    }
+    closeList();
+    return html.join("\n");
+  }
+
+  // ---- token handling ----
+
   function token() {
-    try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; }
+    // localStorage so the Web (inference) and Settings browser tabs share it.
+    try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; }
   }
   function setToken(value) {
     try {
-      if (value) { sessionStorage.setItem(TOKEN_KEY, value); }
-      else { sessionStorage.removeItem(TOKEN_KEY); }
+      if (value) { localStorage.setItem(TOKEN_KEY, value); }
+      else { localStorage.removeItem(TOKEN_KEY); }
     } catch (e) { /* storage unavailable */ }
   }
 
@@ -199,7 +313,8 @@ window.Inference = (function () {
     const body = await json("/api/diagnostics");
     return arrayOf(body, "harnesses").map((h) => ({
       id: String(h.id), name: h.id, type: h.type || "harness",
-      enabled: h.enabled !== false, isDefault: false, status: h.status || ""
+      enabled: h.enabled !== false, isDefault: h.default === true,
+      status: h.status || ""
     }));
   }
 
@@ -233,6 +348,46 @@ window.Inference = (function () {
         providerId: selection.providerId || "", modelId: selection.modelId || "",
         agentProfileId: selection.agentProfileId || "" });
     }
+  }
+
+  /** Small token modal (WebKit-safe; window.prompt is not reliable in SWT Browser). */
+  function askToken(current) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "modal-overlay";
+      const modal = document.createElement("div");
+      modal.className = "modal";
+      const title = document.createElement("div");
+      title.className = "modal-title";
+      title.textContent = "Server bearer token";
+      const input = document.createElement("input");
+      input.type = "password";
+      input.placeholder = "leave empty to clear";
+      input.value = current || "";
+      const actions = document.createElement("div");
+      actions.className = "modal-actions";
+      const cancel = document.createElement("button");
+      cancel.textContent = "Cancel";
+      const apply = document.createElement("button");
+      apply.className = "primary";
+      apply.textContent = "Apply";
+      const close = (value) => { overlay.remove(); resolve(value); };
+      cancel.onclick = () => close(null);
+      apply.onclick = () => close(input.value.trim());
+      overlay.onclick = (event) => { if (event.target === overlay) { close(null); } };
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") { apply.click(); }
+        else if (event.key === "Escape") { cancel.click(); }
+      });
+      actions.appendChild(cancel);
+      actions.appendChild(apply);
+      modal.appendChild(title);
+      modal.appendChild(input);
+      modal.appendChild(actions);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      input.focus();
+    });
   }
 
   // ---- desktop bridge (DStudio settings tab) ----
@@ -279,7 +434,8 @@ window.Inference = (function () {
   return {
     $, state, detect, productName, providers, models, allModels, projects,
     openProject, harnesses, scanProviders, testProvider, applyDefaults,
-    json, sse, arrayOf, statusText, token, setToken, headers,
-    bridgeAvailable, bridgeCall
+    json, sse, arrayOf, statusText, token, setToken, askToken, headers,
+    bridgeAvailable, bridgeCall,
+    THEME_KEY, esc, formatBytes, fillSelect, toast, applyTheme, renderMarkdown
   };
 })();

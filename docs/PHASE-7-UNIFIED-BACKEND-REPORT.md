@@ -271,3 +271,57 @@ services step by +100 inside each block):
   the TEIP surface; OpenAI-compatible adapter against real Ollama `/v1`; direct
   inference sessions (streaming, multi-turn, cancellation); SSE + reconnection;
   port-conflict guidance and clean termination; multi-instance engine administration.
+
+## 14. Addendum 2026-11-22 — Web IDE coherence round
+
+- **Backend sessions in the web UI (S6 follow-up)**: the Inference page now lists
+  `/api/inference/sessions` from the backend instead of localStorage-only
+  conversations. Selecting a server session lazy-loads its messages; deletion,
+  rename and multi-turn continuation hit the real session API. localStorage keeps
+  only unsent drafts and UI preferences (never a second session manager). A
+  cancelled server session is removed and the conversation returns to draft state
+  (server sessions reject messages after cancel, 409). Model/engine switches on a
+  server session delete the pinned session and create a fresh one.
+- **Shared UI helpers**: `esc`, `toast`, `fillSelect`, `formatBytes`,
+  `applyTheme` and a new XSS-safe `renderMarkdown` (code blocks, inline code,
+  bold/italic/links, lists) live once in `common.js`; `app.js` and `settings.js`
+  no longer duplicate them. Chat output is markdown-rendered, including during
+  streaming.
+- **Theme unification**: single key `dstudio.theme.v1` across Inference, Settings
+  and Help (settings.js previously used `inference.theme.v1`); Settings and Help
+  now have working theme toggles; help.html uses the shared UPM tokens instead of
+  its own dark palette.
+- **Keyboard shortcuts (web)**: Enter send / Shift+Enter newline, Ctrl/Cmd+K
+  focus prompt, Ctrl/Cmd+N new conversation, Esc cancel; documented in
+  help.html#shortcuts.
+- **Ollama adapter fix**: `strip(modelId)` truncated bare tagged model names
+  (`evo_model:latest` → `latest`); it now removes only the `ollama:` engine
+  prefix. Live-verified with real streamed inference via the web API.
+- **Port family test**: `DCodeFamilyIntegrationTest` default endpoint corrected
+  to DCode's 58xxx convention (58080); DCode itself was migrated off 48080 so
+  DStudio and DCode no longer collide (simultaneous operation verified live).
+
+## 15. Addendum 2026-11-22 (b) — Harness defaults, web tasks and CLI inference
+
+- **Default harness on fresh install**: `DStudioLifecycleCoordinator` registers
+  DCode last and selects it as the default only when no persisted selection
+  exists; `/api/diagnostics` now exposes `defaultHarness` plus a per-harness
+  `default` flag so every client (web/RCP) can show the selection honestly.
+  Unavailable/disabled harnesses fail the execution with an explicit diagnostic —
+  there is no silent replacement.
+- **Web coding tasks**: new `web/tasks.js` + "Tasks" nav view. Tasks execute
+  through the real TEIP 1.1 surface (`POST /teip/v1/executions`, status/events/
+  result polling, idempotent cancel) and render real changed files and diffs.
+  Live-verified: OpenCode task created `task-marker.txt` (TASK_OK) on disk,
+  COMPLETED with `modifiedFiles` reported.
+- **CLI inference**: new `chat` command (streaming through the shared
+  `InferenceService`, persisted sessions; `chat list` / `chat show <id>` expose
+  the sessions of every client). Live-verified: a CLI-created session is visible
+  through the web API after restart (same SQLite store) — cross-mode state
+  consistency.
+- **DCode port lifecycle**: DCode now persists allocated/fallback ports in
+  `dcode-config.json` and reuses them on restart; a configured-but-occupied port
+  falls back deterministically inside the 58xxx block (warning logged, new port
+  persisted). DCode's CLI resolves the authoritative port (bound property →
+  `-Ddcode.port` override → persisted config → family default) instead of
+  hardcoding 58080. Live-verified: conflict → 58081, restart → 58081 reused.

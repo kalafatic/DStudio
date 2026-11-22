@@ -1,15 +1,18 @@
-/* DStudio Web tab — inference over DStudio's own engines, sessions, projects and
- * harnesses. Visual language mirrors the DCode web UI; the objects are DStudio's. */
+/* DStudio Web — inference workspace arranged like the DCode web app:
+ * topbar (center status + right controls), left views, tabbed work area,
+ * right Context panel and bottom Console/Events/Problems. DStudio's own objects. */
 (function () {
   "use strict";
 
-  const { $, detect, providers, models, allModels, projects, harnesses, json, sse } =
-      window.Inference;
+  const { $, detect, providers, models, allModels, projects, harnesses, json, sse,
+          askToken, token, setToken, esc, formatBytes, fillSelect, toast,
+          applyTheme, renderMarkdown } = window.Inference;
 
   const STORE_KEY = "dstudio.conversations.v1";
-  const THEME_KEY = "dstudio.theme.v1";
 
   const state = {
+    connected: false,
+    view: "inference",
     providerId: "",
     modelId: "",
     projectId: "",
@@ -20,32 +23,32 @@
     allHarnesses: [],
     conversations: [],
     currentId: null,
+    context: { type: "", item: null },
     busy: false,
-    stream: null
+    stream: null,
+    tabOpen: true,
+    consoleEntries: [],
+    consoleAutoscroll: true
   };
 
-  // ---- persistence ----
+  // ---------------- persistence / conversations ----------------
+  // Conversations are backend sessions (/api/inference/sessions — persisted by
+  // DStudio's InferenceService). localStorage keeps only unsent drafts and UI
+  // preferences; it is never a second session manager.
 
   function loadStore() {
     try {
       const raw = localStorage.getItem(STORE_KEY);
-      const parsed = raw ? JSON.parse(raw) : null;
-      state.conversations = Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      state.conversations = [];
-    }
-    if (!state.conversations.length) {
-      state.conversations.push(newConversation());
-    }
-    state.currentId = state.conversations[0].id;
-    const first = state.conversations[0];
-    if (first && first.providerId) { state.providerId = first.providerId; }
-    if (first && first.modelId) { state.modelId = first.modelId; }
+      state.conversations = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(state.conversations)) { state.conversations = []; }
+    } catch (e) { state.conversations = []; }
   }
 
   function persist() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(state.conversations)); }
-    catch (e) { /* storage unavailable */ }
+    try {
+      const drafts = state.conversations.filter((c) => !c.backend && !c.studioSessionId);
+      localStorage.setItem(STORE_KEY, JSON.stringify(drafts));
+    } catch (e) { /* storage unavailable */ }
   }
 
   function newConversation() {
@@ -56,6 +59,8 @@
       providerId: state.providerId || "",
       modelId: state.modelId || "",
       studioSessionId: null,
+      backend: false,
+      status: "IDLE",
       createdAt: new Date().toISOString()
     };
   }
@@ -64,58 +69,104 @@
     return state.conversations.find((c) => c.id === state.currentId) || null;
   }
 
-  // ---- theme ----
-
-  function applyTheme() {
-    let theme = "dark";
-    try { theme = localStorage.getItem(THEME_KEY) || "dark"; } catch (e) { /* ignore */ }
-    document.documentElement.dataset.theme = theme;
-    $("themeBtn").onclick = () => {
-      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-      document.documentElement.dataset.theme = next;
-      try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* ignore */ }
-    };
+  /** Merges backend sessions into the conversation list (drafts stay on top). */
+  async function loadBackendSessions() {
+    try {
+      const body = await json("/api/inference/sessions");
+      const sessions = Array.isArray(body.sessions) ? body.sessions : [];
+      const drafts = state.conversations.filter((c) => !c.backend && !c.studioSessionId);
+      const merged = sessions.map((s) => ({
+        id: String(s.id),
+        studioSessionId: String(s.id),
+        providerId: s.engineId || "",
+        modelId: s.model || "",
+        title: s.title || "Session",
+        messages: null,
+        backend: true,
+        status: s.status || "IDLE",
+        statusMessage: s.statusMessage || "",
+        createdAt: s.createdAt || "",
+        updatedAt: s.updatedAt || ""
+      }));
+      const selected = state.currentId;
+      state.conversations = drafts.concat(merged);
+      if (selected && state.conversations.some((c) => c.id === selected)) {
+        state.currentId = selected;
+      } else {
+        state.currentId = state.conversations[0] ? state.conversations[0].id : null;
+      }
+    } catch (e) {
+      log("error", "Sessions unavailable: " + e.message);
+      if (!state.conversations.length) { state.conversations.push(newConversation()); }
+      if (!state.currentId) { state.currentId = state.conversations[0].id; }
+    }
   }
 
-  // ---- toast / connection ----
-
-  let toastTimer = null;
-  function toast(text, isError) {
-    const el = $("toast");
-    el.textContent = text;
-    el.className = "toast" + (isError ? " error" : "");
-    el.hidden = false;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.hidden = true; }, 4200);
+  function rebindConversation(oldId, backendId) {
+    const conversation = state.conversations.find((c) => c.id === oldId);
+    if (!conversation) { return; }
+    conversation.id = backendId;
+    conversation.studioSessionId = backendId;
+    conversation.backend = true;
+    if (state.currentId === oldId) { state.currentId = backendId; }
+    persist();
   }
+
+  // ---------------- theme / toast / connection ----------------
+  // applyTheme/toast come from common.js (single implementation, both pages).
 
   function setConnection(kind, text) {
-    const el = $("connStatus");
-    el.className = "conn " + kind;
+    state.connected = kind === "connected";
+    const el = $("connection-status");
+    el.className = "conn conn-" + kind;
     el.textContent = "\u25CF " + text;
   }
 
-  // ---- selects ----
+  // ---------------- console / events / problems ----------------
 
-  function fillSelect(select, items, selectedId, emptyLabel) {
-    select.innerHTML = "";
-    if (!items.length) {
-      const option = document.createElement("option");
-      option.value = "";
-      option.textContent = emptyLabel || "(none)";
-      select.appendChild(option);
-      return;
-    }
-    for (const item of items) {
-      const option = document.createElement("option");
-      option.value = item.id;
-      option.textContent = item.label;
-      select.appendChild(option);
-    }
-    if (selectedId && items.some((item) => item.id === selectedId)) {
-      select.value = selectedId;
-    }
+  function stamp() { return new Date().toISOString().slice(11, 19); }
+
+  function log(kind, message) {
+    const category = String(kind || "info").toUpperCase();
+    const line = stamp() + " " + category + " " + message;
+    state.consoleEntries.push(line);
+    const node = document.createElement("div");
+    node.className = "log-line log-" + category.toLowerCase();
+    const ts = document.createElement("span");
+    ts.className = "ts";
+    ts.textContent = stamp() + " ";
+    const tag = document.createElement("span");
+    tag.className = "console-tag console-tag-" + category.toLowerCase();
+    tag.textContent = category + " ";
+    node.appendChild(ts);
+    node.appendChild(tag);
+    node.appendChild(document.createTextNode(message));
+    const consolePane = $("panel-console");
+    consolePane.appendChild(node);
+    if (state.consoleAutoscroll) { consolePane.scrollTop = consolePane.scrollHeight; }
+    if (category === "ERROR") { problem(message); }
   }
+
+  function event(message) {
+    const node = document.createElement("div");
+    node.className = "ev";
+    node.textContent = stamp() + " " + message;
+    const pane = $("panel-events");
+    pane.appendChild(node);
+    if (state.consoleAutoscroll) { pane.scrollTop = pane.scrollHeight; }
+  }
+
+  function problem(message) {
+    const node = document.createElement("div");
+    node.className = "problem";
+    node.textContent = stamp() + " " + message;
+    const pane = $("panel-problems");
+    pane.appendChild(node);
+    if (state.consoleAutoscroll) { pane.scrollTop = pane.scrollHeight; }
+  }
+
+  // ---------------- selects / data ----------------
+  // fillSelect comes from common.js.
 
   function providerLabel(provider) {
     return provider.name + (provider.isDefault ? " \u2605" : "")
@@ -126,10 +177,10 @@
     state.allProviders = (await providers()).filter((p) => p.enabled !== false);
     const keep = state.providerId
         || (state.allProviders.find((p) => p.isDefault) || {}).id || "";
-    const select = $("providerSelect");
-    fillSelect(select, state.allProviders.map((p) => ({ id: p.id, label: providerLabel(p) })),
-        keep, "no provider");
-    state.providerId = select.value || "";
+    fillSelect($("providerSelect"), state.allProviders.map((p) => ({
+      id: p.id, label: providerLabel(p)
+    })), keep, "no provider");
+    state.providerId = $("providerSelect").value || "";
     await refreshModels();
   }
 
@@ -140,7 +191,6 @@
     if (!providerId) {
       state.allModels = [];
       fillSelect(select, [], "", "no model");
-      updateModelMeta();
       return;
     }
     select.innerHTML = "<option value=\"\">loading…</option>";
@@ -148,11 +198,9 @@
       state.allModels = await models(providerId);
     } catch (e) {
       state.allModels = [];
-      $("sendStatus").textContent = "Models unavailable: " + e.message;
+      log("error", "Models unavailable for " + providerId + ": " + e.message);
     }
     if (!state.allModels.length) {
-      // The selected engine may be offline; still load every LLM that is reachable
-      // from the other engines so the combo is never empty when models exist.
       try {
         const aggregate = await allModels(state.allProviders);
         state.allModels = aggregate.models;
@@ -164,80 +212,272 @@
       label: (m.providerName ? m.providerName + " :: " : "") + m.name
     })), keep, "no model");
     state.modelId = select.value || "";
-    updateModelMeta();
-  }
-
-  function updateModelMeta() {
-    const provider = state.allProviders.find((p) => p.id === state.providerId);
-    const model = state.allModels.find((m) => m.id === state.modelId);
-    $("modelMeta").textContent = [
-      provider ? provider.name : "",
-      model ? model.name : "",
-      model && model.sizeBytes ? formatBytes(model.sizeBytes) : ""
-    ].filter(Boolean).join(" · ");
-  }
-
-  function formatBytes(n) {
-    if (!n || n <= 0) { return ""; }
-    const units = ["B", "KB", "MB", "GB", "TB"];
-    let value = n, index = 0;
-    while (value >= 1024 && index < units.length - 1) { value /= 1024; index++; }
-    return value.toFixed(value >= 100 || index === 0 ? 0 : 1) + " " + units[index];
   }
 
   async function refreshProjects() {
     try { state.allProjects = await projects(); }
-    catch (e) { state.allProjects = []; }
-    const select = $("projectSelect");
-    fillSelect(select, state.allProjects.map((p) => ({ id: p.id,
-      label: p.name + (p.rootPath ? " — " + p.rootPath : "") })), state.projectId, "(none)");
-    state.projectId = select.value || "";
+    catch (e) { state.allProjects = []; log("error", "Projects unavailable: " + e.message); }
+    if (state.projectId && !state.allProjects.some((p) => p.id === state.projectId)) {
+      state.projectId = "";
+    }
   }
 
   async function refreshHarnesses() {
     try { state.allHarnesses = await harnesses(); }
-    catch (e) { state.allHarnesses = []; }
-    const field = $("harnessField");
-    const select = $("harnessSelect");
-    if (!state.allHarnesses.length) {
-      field.hidden = true;
+    catch (e) { state.allHarnesses = []; log("error", "Harnesses unavailable: " + e.message); }
+    if (state.harnessId && !state.allHarnesses.some((h) => h.id === state.harnessId)) {
       state.harnessId = "";
+    }
+  }
+
+  // ---------------- render: topbar / tabs / context ----------------
+  // formatBytes comes from common.js.
+
+  function updateTopbar() {
+    const project = state.allProjects.find((p) => p.id === state.projectId);
+    const engine = state.allProviders.find((p) => p.id === state.providerId);
+    const model = state.allModels.find((m) => m.id === state.modelId);
+    $("top-project").textContent = project ? "project: " + project.name : "no project";
+    $("top-engine").textContent = engine ? "engine: " + engine.name
+        + (engine.isDefault ? " \u2605" : "") : "no engine";
+    $("top-model").textContent = model ? "model: " + model.name : "no model";
+    $("modelMeta").textContent = [engine ? engine.name : "",
+      model ? model.name : "",
+      model && model.sizeBytes ? formatBytes(model.sizeBytes) : ""]
+        .filter(Boolean).join(" · ");
+  }
+
+  function renderTab() {
+    const pane = $("inference-pane");
+    const noTab = $("no-tab");
+    if (!state.tabOpen) {
+      pane.classList.remove("active");
+      noTab.hidden = false;
       return;
     }
-    field.hidden = false;
-    fillSelect(select, state.allHarnesses.map((h) => ({ id: h.id,
-      label: h.name + (h.status ? " · " + h.status : "") })), state.harnessId, "(none)");
-    state.harnessId = select.value || "";
+    pane.classList.add("active");
+    noTab.hidden = true;
+    const conversation = current();
+    $("tabTitle").textContent = conversation && conversation.title
+        ? conversation.title : "Inference";
   }
 
-  // ---- conversations ----
+  function renderContext() {
+    const box = $("right-content");
+    if (!state.context.type || !state.context.item) {
+      box.innerHTML = "<div class=\"empty-note\">Select a session, project, engine, "
+          + "model or harness for details.</div>";
+      return;
+    }
+    const item = state.context.item;
+    const rows = [];
+    const add = (k, v) => rows.push("<div class=\"ctx-kv\"><span class=\"k\">"
+        + esc(k) + "</span><span class=\"v\">" + esc(v == null ? "—" : v)
+        + "</span></div>");
+    if (state.context.type === "session") {
+      add("Title", item.title);
+      add("Provider", item.providerId);
+      add("Model", item.modelId);
+      add("Status", item.backend ? (item.status || "SESSION") : "LOCAL DRAFT");
+    } else if (state.context.type === "project") {
+      add("Name", item.name);
+      add("Root", item.rootPath);
+    } else if (state.context.type === "engine") {
+      add("Name", item.name);
+      add("Type", item.type);
+      add("Status", item.status);
+      add("Endpoint", item.endpoint);
+    } else if (state.context.type === "model") {
+      add("Name", item.name);
+      add("Provider", item.providerName || item.providerId);
+      add("Size", formatBytes(item.sizeBytes));
+      add("Available", item.available === false ? "no" : "yes");
+    } else if (state.context.type === "harness") {
+      add("Name", item.name);
+      add("Type", item.type);
+      add("Status", item.status);
+      add("Default", item.isDefault === true ? "yes ★" : "no");
+      add("Enabled", item.enabled === false ? "no" : "yes");
+    }
+    box.innerHTML = "<div class=\"ctx-title\">" + esc(item.name || item.title
+        || state.context.type) + "</div>" + rows.join("");
+  }
 
-  function renderConversations() {
-    const list = $("conversationList");
-    list.innerHTML = "";
-    const ordered = state.conversations.slice().sort((a, b) =>
-        (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || ""));
-    for (const conversation of ordered) {
-      const row = document.createElement("div");
-      row.className = "conv" + (conversation.id === state.currentId ? " active" : "");
-      const label = document.createElement("button");
-      label.className = "conv-label";
-      label.textContent = conversation.title || "New conversation";
-      label.title = conversation.title || "";
-      label.onclick = () => selectConversation(conversation.id);
-      const remove = document.createElement("button");
-      remove.className = "conv-remove";
-      remove.textContent = "\u00D7";
-      remove.title = "Delete conversation";
-      remove.onclick = (event) => {
-        event.stopPropagation();
-        deleteConversation(conversation.id);
-      };
-      row.appendChild(label);
-      row.appendChild(remove);
-      list.appendChild(row);
+  // ---------------- render: left views ----------------
+  // esc comes from common.js.
+
+  function item(node, title, sub, onClick, actions) {
+    const row = document.createElement("div");
+    row.className = "item";
+    const body = document.createElement("div");
+    body.className = "item-body";
+    const titleNode = document.createElement("div");
+    titleNode.className = "item-title";
+    titleNode.textContent = title;
+    body.appendChild(titleNode);
+    if (sub) {
+      const subNode = document.createElement("div");
+      subNode.className = "item-sub";
+      subNode.textContent = sub;
+      body.appendChild(subNode);
+    }
+    row.appendChild(body);
+    if (onClick) { row.onclick = onClick; }
+    if (actions) {
+      const bar = document.createElement("div");
+      bar.className = "item-actions";
+      actions.forEach((a) => { bar.appendChild(a); });
+      bar.onclick = (e) => e.stopPropagation();
+      row.appendChild(bar);
+    }
+    node.appendChild(row);
+    return row;
+  }
+
+  function renderLeft() {
+    const content = $("left-content");
+    content.innerHTML = "";
+    document.querySelectorAll("#left-nav .nav-btn").forEach((b) =>
+        b.classList.toggle("active", b.dataset.view === state.view));
+
+    if (state.view === "tasks") {
+      window.DStudioTasks.activate(content, $("right-content"));
+      return;
+    }
+
+    if (state.view === "inference" || state.view === "sessions") {
+      const head = document.createElement("div");
+      head.className = "section-head";
+      const label = document.createElement("span");
+      label.textContent = "Conversations";
+      const add = document.createElement("button");
+      add.className = "btn btn-small";
+      add.textContent = "New";
+      add.onclick = () => { startNewConversation(); renderLeft(); };
+      head.appendChild(label);
+      head.appendChild(add);
+      content.appendChild(head);
+      const list = document.createElement("div");
+      list.className = "item-list";
+      content.appendChild(list);
+      if (!state.conversations.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty-note";
+        empty.style.padding = "10px";
+        empty.textContent = "No conversations yet.";
+        list.appendChild(empty);
+      }
+      for (const conversation of state.conversations.slice().sort((a, b) =>
+          (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || ""))) {
+        const count = conversation.messages === null ? "·" : conversation.messages.length;
+        const row = item(list, conversation.title || "New conversation",
+            (conversation.modelId || "no model") + " · " + count + " msg"
+            + (conversation.backend ? " · server" : ""),
+            () => selectConversation(conversation.id));
+        if (conversation.id === state.currentId) { row.classList.add("active"); }
+        const del = document.createElement("button");
+        del.className = "btn btn-small";
+        del.textContent = "\u00D7";
+        del.title = "Delete conversation";
+        del.onclick = (event) => {
+          event.stopPropagation();
+          deleteConversation(conversation.id);
+          renderLeft();
+        };
+        const bar = document.createElement("div");
+        bar.className = "item-actions";
+        bar.appendChild(del);
+        row.appendChild(bar);
+      }
+      return;
+    }
+
+    const head = document.createElement("div");
+    head.className = "section-head";
+    const label = document.createElement("span");
+    const refresh = document.createElement("button");
+    refresh.className = "btn btn-small";
+    refresh.textContent = "Refresh";
+    refresh.onclick = () => bootData(false);
+    head.appendChild(label);
+    head.appendChild(refresh);
+    content.appendChild(head);
+    const list = document.createElement("div");
+    list.className = "item-list";
+    content.appendChild(list);
+
+    if (state.view === "projects") {
+      label.textContent = "Projects";
+      if (!state.allProjects.length) {
+        list.innerHTML = "<div class=\"empty-note\" style=\"padding:10px\">"
+            + "No projects. Open them from the Settings tab.</div>";
+      }
+      for (const project of state.allProjects) {
+        const row = item(list, project.name, project.rootPath, () => {
+          state.projectId = project.id;
+          state.context = { type: "project", item: project };
+          updateTopbar(); renderContext(); renderLeft();
+        });
+        if (project.id === state.projectId) { row.classList.add("active"); }
+      }
+    } else if (state.view === "engines") {
+      label.textContent = "Inference engines";
+      for (const engine of state.allProviders) {
+        const row = item(list, engine.name + (engine.isDefault ? " \u2605" : ""),
+            (engine.type || "") + (engine.status ? " · " + engine.status : ""),
+            async () => {
+              state.providerId = engine.id;
+              state.modelId = "";
+              state.context = { type: "engine", item: engine };
+              $("providerSelect").value = engine.id;
+              await refreshModels("");
+              updateTopbar(); renderContext(); renderLeft(); renderChat();
+            });
+        if (engine.id === state.providerId) { row.classList.add("active"); }
+      }
+    } else if (state.view === "models") {
+      label.textContent = "Models";
+      if (!state.allModels.length) {
+        list.innerHTML = "<div class=\"empty-note\" style=\"padding:10px\">"
+            + "No models reported. Use Settings → Browse with a running engine.</div>";
+      }
+      for (const model of state.allModels) {
+        const row = item(list, model.name,
+            (model.providerName || model.providerId || "")
+            + (model.sizeBytes ? " · " + formatBytes(model.sizeBytes) : ""),
+            () => {
+              state.modelId = model.id;
+              if (model.providerId) {
+                state.providerId = model.providerId;
+                $("providerSelect").value = model.providerId;
+              }
+              $("modelSelect").value = model.id;
+              state.context = { type: "model", item: model };
+              updateTopbar(); renderContext(); renderLeft(); renderChat();
+            });
+        if (model.id === state.modelId) { row.classList.add("active"); }
+      }
+    } else if (state.view === "harnesses") {
+      label.textContent = "Harnesses";
+      if (!state.allHarnesses.length) {
+        list.innerHTML = "<div class=\"empty-note\" style=\"padding:10px\">"
+            + "No harnesses reported.</div>";
+      }
+      for (const harness of state.allHarnesses) {
+        const row = item(list, harness.name + (harness.isDefault ? " \u2605" : ""),
+            (harness.type || "") + (harness.status ? " · " + harness.status : "")
+            + (harness.enabled === false ? " · disabled" : ""),
+            () => {
+              state.harnessId = harness.id;
+              state.context = { type: "harness", item: harness };
+              renderContext(); renderLeft();
+            });
+        if (harness.id === state.harnessId) { row.classList.add("active"); }
+      }
     }
   }
+
+  // ---------------- chat ----------------
 
   function selectConversation(id) {
     state.currentId = id;
@@ -246,20 +486,63 @@
       if (conversation.providerId) {
         state.providerId = conversation.providerId;
         $("providerSelect").value = conversation.providerId;
-        refreshModels(conversation.modelId).catch(() => {});
+        refreshModels(conversation.modelId).then(() => {
+          updateTopbar(); renderContext(); renderChat(); renderTab();
+        }).catch(() => {});
       }
-      renderChat();
-      renderConversations();
+      state.context = { type: "session", item: conversation };
+    }
+    openTab();
+    renderLeft();
+    renderChat();
+    renderTab();
+    updateTopbar();
+    renderContext();
+    if (conversation && conversation.backend && conversation.messages === null) {
+      loadBackendMessages(conversation);
     }
   }
 
-  function deleteConversation(id) {
+  async function loadBackendMessages(conversation) {
+    if (!conversation || !conversation.studioSessionId) { return; }
+    try {
+      const wire = await json("/api/inference/sessions/"
+          + encodeURIComponent(conversation.studioSessionId));
+      conversation.messages = (Array.isArray(wire.messages) ? wire.messages : [])
+          .map((m) => ({ role: m.role || "assistant", content: m.content || "" }));
+      if (wire.title) { conversation.title = wire.title; }
+      if (conversation.id === state.currentId) {
+        renderChat(); renderTab(); renderLeft(); renderContext();
+      }
+    } catch (e) {
+      log("error", "Session " + conversation.studioSessionId
+          + " unavailable: " + e.message);
+      conversation.messages = [];
+      if (conversation.id === state.currentId) { renderChat(); }
+    }
+  }
+
+  async function deleteConversation(id) {
+    const conversation = state.conversations.find((c) => c.id === id);
+    if (conversation && conversation.backend) {
+      try {
+        await json("/api/inference/sessions/" + encodeURIComponent(id),
+            { method: "DELETE" });
+        log("info", "session " + id.slice(0, 12) + " deleted");
+      } catch (e) {
+        toast("Delete failed: " + e.message, true);
+        return;
+      }
+    }
     state.conversations = state.conversations.filter((c) => c.id !== id);
     if (!state.conversations.length) { state.conversations.push(newConversation()); }
     if (state.currentId === id) { state.currentId = state.conversations[0].id; }
     persist();
-    renderConversations();
+    renderLeft();
     renderChat();
+    renderTab();
+    updateTopbar();
+    renderContext();
   }
 
   function startNewConversation() {
@@ -268,9 +551,14 @@
     conversation.modelId = state.modelId;
     state.conversations.unshift(conversation);
     state.currentId = conversation.id;
+    state.context = { type: "session", item: conversation };
     persist();
-    renderConversations();
+    openTab();
+    renderLeft();
     renderChat();
+    renderTab();
+    updateTopbar();
+    renderContext();
     $("promptInput").focus();
   }
 
@@ -280,73 +568,72 @@
     conversation.providerId = state.providerId;
     conversation.modelId = state.modelId;
     conversation.updatedAt = new Date().toISOString();
-    if (!conversation.messages.length) { return; }
     const firstUser = conversation.messages.find((m) => m.role === "user");
     if (firstUser) {
       const text = firstUser.content.replace(/\s+/g, " ").trim();
       conversation.title = text.length > 48 ? text.slice(0, 48) + "…" : text;
+      if (state.context.type === "session") {
+        state.context = { type: "session", item: conversation };
+      }
+      if (conversation.backend && conversation.studioSessionId) {
+        json("/api/inference/sessions/"
+            + encodeURIComponent(conversation.studioSessionId) + "/rename",
+            { method: "POST", body: { title: conversation.title } }).catch(() => {});
+      }
     }
     persist();
   }
 
-  // ---- chat rendering ----
-
   function renderChat() {
-    const log = $("chatLog");
-    log.innerHTML = "";
+    const logBox = $("chatLog");
+    logBox.innerHTML = "";
     const conversation = current();
     const messages = conversation ? conversation.messages : [];
     if (!messages.length) {
-      log.appendChild(emptyState());
+      const placeholder = document.createElement("div");
+      placeholder.className = "placeholder";
+      const title = document.createElement("div");
+      title.className = "placeholder-title";
+      title.textContent = "Start a conversation";
+      const text = document.createElement("div");
+      text.className = "placeholder-text";
+      text.textContent = "Choose a provider and model above, then send a prompt. "
+          + "Engines, models, projects and harnesses are configured in the Settings tab.";
+      placeholder.appendChild(title);
+      placeholder.appendChild(text);
+      logBox.appendChild(placeholder);
       return;
     }
-    for (const message of messages) { log.appendChild(messageNode(message)); }
-    log.scrollTop = log.scrollHeight;
+    for (const message of messages) {
+      const node = document.createElement("div");
+      node.className = "msg " + message.role;
+      const who = document.createElement("div");
+      who.className = "who";
+      who.textContent = message.role;
+      const text = document.createElement("div");
+      text.className = "text";
+      text.innerHTML = renderMarkdown(message.content);
+      node.appendChild(who);
+      node.appendChild(text);
+      logBox.appendChild(node);
+    }
+    logBox.scrollTop = logBox.scrollHeight;
   }
 
-  function emptyState() {
-    const wrapper = document.createElement("div");
-    wrapper.className = "empty";
-    const title = document.createElement("div");
-    title.className = "empty-title";
-    title.textContent = "Start a conversation.";
-    const text = document.createElement("div");
-    text.className = "empty-text";
-    text.textContent = "Choose an inference engine and model above, then send a prompt. "
-        + "Engines, models, projects and harnesses are configured in the Settings tab.";
-    wrapper.appendChild(title);
-    wrapper.appendChild(text);
-    return wrapper;
-  }
-
-  function messageNode(message) {
-    const node = document.createElement("div");
-    node.className = "msg " + message.role;
-    const who = document.createElement("div");
-    who.className = "who";
-    who.textContent = message.role;
-    const text = document.createElement("div");
-    text.className = "text";
-    text.textContent = message.content;
-    node.appendChild(who);
-    node.appendChild(text);
-    return node;
-  }
-
-  function appendToken(token) {
+  function appendToken(value) {
     const conversation = current();
     if (!conversation) { return; }
     const message = conversation.messages[conversation.messages.length - 1];
     if (!message || message.role !== "assistant") { return; }
-    message.content += token;
+    message.content += value;
     const nodes = $("chatLog").querySelectorAll(".msg.assistant .text");
     const last = nodes[nodes.length - 1];
-    if (last) { last.textContent = message.content; }
-    const log = $("chatLog");
-    log.scrollTop = log.scrollHeight;
+    if (last) { last.innerHTML = renderMarkdown(message.content); }
+    const logBox = $("chatLog");
+    logBox.scrollTop = logBox.scrollHeight;
   }
 
-  // ---- send / stream ----
+  // ---------------- send / stream ----------------
 
   function setBusy(busy) {
     state.busy = busy;
@@ -370,33 +657,42 @@
     persist();
     return created.id;
   }
-
   async function send() {
     if (state.busy) { return; }
     const input = $("promptInput");
     const text = input.value.trim();
     if (!text) { return; }
     if (!state.providerId || !state.modelId) {
-      toast("Select an engine and model first (Settings scans engines and browses models).",
-          true);
+      toast("Select an engine and model first (Settings scans engines and browses models).", true);
       return;
     }
     if (!current()) { startNewConversation(); }
     const active = current();
+    if (active.messages === null) { await loadBackendMessages(active); }
     if (active.studioSessionId && (active.providerId !== state.providerId
         || active.modelId !== state.modelId)) {
+      // A server session pins engine/model; switching requires a fresh one.
+      if (active.backend) {
+        try {
+          await json("/api/inference/sessions/"
+              + encodeURIComponent(active.studioSessionId), { method: "DELETE" });
+        } catch (e) { /* best effort */ }
+        active.backend = false;
+      }
       active.studioSessionId = null;
     }
     active.providerId = state.providerId;
     active.modelId = state.modelId;
-    const userMessage = { role: "user", content: text };
     const assistantMessage = { role: "assistant", content: "" };
-    active.messages.push(userMessage);
+    active.messages.push({ role: "user", content: text });
     active.messages.push(assistantMessage);
     input.value = "";
     renderChat();
     touchConversation();
-    renderConversations();
+    renderLeft();
+    renderTab();
+    renderContext();
+    log("inference", "send → " + state.providerId + " / " + state.modelId);
 
     const controller = new AbortController();
     state.stream = { controller: controller, cancelled: false };
@@ -405,6 +701,8 @@
 
     try {
       const sessionId = await ensureSession(active);
+      if (active.id !== sessionId) { rebindConversation(active.id, sessionId); }
+      event("session " + sessionId.slice(0, 12) + " streaming");
       await sse("/api/inference/sessions/" + encodeURIComponent(sessionId)
           + "/messages/stream", {
         method: "POST", body: { content: text }, signal: controller.signal
@@ -430,16 +728,32 @@
         const index = active.messages.indexOf(assistantMessage);
         if (index >= 0) { active.messages.splice(index, 1); }
       }
-      toast(streamError.message, true);
+      log("error", streamError.message);
       $("sendStatus").textContent = "Failed: " + streamError.message;
       renderChat();
     } else if (wasCancelled) {
       if (!assistantMessage.content) { assistantMessage.content = "[cancelled]"; }
+      // The cancelled backend session cannot accept further messages (409), so it
+      // is removed and the conversation becomes a local draft again — the next
+      // send creates a fresh server session.
+      if (active.studioSessionId) {
+        try {
+          await json("/api/inference/sessions/"
+              + encodeURIComponent(active.studioSessionId), { method: "DELETE" });
+        } catch (e) { /* best effort */ }
+      }
       active.studioSessionId = null;
+      active.backend = false;
+      persist();
+      log("warning", "generation cancelled");
       renderChat();
+    } else {
+      log("success", "generation complete");
     }
     touchConversation();
-    renderConversations();
+    renderLeft();
+    renderTab();
+    renderContext();
   }
 
   async function cancel() {
@@ -457,16 +771,87 @@
     $("sendStatus").textContent = "Cancelling…";
   }
 
-  // ---- wiring ----
+  function openTab() {
+    state.tabOpen = true;
+    const pane = $("inference-pane");
+    const noTab = $("no-tab");
+    pane.classList.add("active");
+    noTab.hidden = true;
+    renderTab();
+  }
+
+  function closeTab() {
+    state.tabOpen = false;
+    $("inference-pane").classList.remove("active");
+    $("no-tab").hidden = false;
+  }
+
+  // ---------------- wiring ----------------
 
   function wire() {
-    $("newChatBtn").onclick = startNewConversation;
+    document.querySelectorAll("#left-nav .nav-btn").forEach((button) => {
+      button.onclick = () => {
+        if (state.view === "tasks" && button.dataset.view !== "tasks") {
+          window.DStudioTasks.deactivate();
+        }
+        state.view = button.dataset.view;
+        openTab();
+        renderLeft();
+        renderChat();
+        renderTab();
+        renderContext();
+      };
+    });
+    document.querySelectorAll(".bottom-tab").forEach((tab) => {
+      tab.onclick = () => {
+        document.querySelectorAll(".bottom-tab").forEach((t) =>
+            t.classList.remove("active"));
+        document.querySelectorAll(".bottom-pane").forEach((p) =>
+            p.classList.remove("active"));
+        tab.classList.add("active");
+        $("panel-" + tab.dataset.panel).classList.add("active");
+      };
+    });
+    $("chip-autoscroll").onclick = () => {
+      state.consoleAutoscroll = !state.consoleAutoscroll;
+      $("chip-autoscroll").classList.toggle("active", state.consoleAutoscroll);
+    };
+    $("chip-autoscroll").classList.toggle("active", state.consoleAutoscroll);
+    $("chip-clear").onclick = () => { $("panel-console").innerHTML = ""; };
+    $("chip-copy").onclick = () => {
+      const text = state.consoleEntries.join("\n");
+      if (navigator.clipboard) { navigator.clipboard.writeText(text); }
+      log("info", "console copied to clipboard");
+    };
+    $("chip-export").onclick = () => {
+      const blob = new Blob([state.consoleEntries.join("\n")], { type: "text/plain" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "dstudio-console.txt";
+      link.click();
+    };
+    $("tabClose").onclick = (event) => { event.stopPropagation(); closeTab(); };
+    document.querySelector(".tab[data-tab=\"inference\"]").onclick = openTab;
+    $("openInferenceBtn").onclick = () => { openTab(); $("promptInput").focus(); };
     $("sendBtn").onclick = send;
     $("cancelBtn").onclick = cancel;
     $("refreshBtn").onclick = () => bootData(true);
-    $("providerSelect").onchange = () => {
+    $("btn-auth").onclick = async () => {
+      const value = await askToken(token());
+      if (value === null) { return; }
+      setToken(value);
+      bootData(true);
+    };
+    $("btn-conn").onclick = () => {
+      log("info", "connection: " + (state.connected ? "connected" : "offline")
+          + " · " + window.location.origin);
+      toast((state.connected ? "Connected: " : "Offline: ") + window.location.origin,
+          !state.connected);
+    };
+    $("providerSelect").onchange = async () => {
       state.modelId = "";
-      refreshModels("").catch((e) => toast(e.message, true));
+      await refreshModels("");
+      updateTopbar(); renderContext(); renderLeft(); renderChat();
     };
     $("modelSelect").onchange = () => {
       state.modelId = $("modelSelect").value;
@@ -475,49 +860,84 @@
         state.providerId = model.providerId;
         $("providerSelect").value = model.providerId;
       }
-      updateModelMeta();
+      updateTopbar(); renderContext(); renderLeft(); renderChat();
     };
-    $("projectSelect").onchange = () => { state.projectId = $("projectSelect").value; };
-    $("harnessSelect").onchange = () => { state.harnessId = $("harnessSelect").value; };
     $("promptInput").addEventListener("keydown", (event) => {
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
         send();
       }
     });
+
+    // Global web-UI shortcuts (documented in help.html#shortcuts).
+    document.addEventListener("keydown", (event) => {
+      const modifier = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+      if (modifier && key === "k") {
+        event.preventDefault();
+        $("promptInput").focus();
+      } else if (modifier && key === "n") {
+        event.preventDefault();
+        startNewConversation();
+      } else if (event.key === "Escape" && state.busy) {
+        event.preventDefault();
+        cancel();
+      }
+    });
   }
 
   async function bootData(showToast) {
-    setConnection("offline", "connecting");
+    setConnection("reconnecting", "connecting");
     try {
       await detect();
     } catch (e) {
-      setConnection("offline", "offline");
-      $("sendStatus").textContent = e.message;
+      setConnection("disconnected", "offline");
+      log("error", "Backend unreachable: " + e.message);
       toast(e.message, true);
       return;
     }
-    document.title = "DStudio — Inference";
-    setConnection("online", "DStudio connected");
     try {
       await refreshProviders();
       await refreshProjects();
       await refreshHarnesses();
-      if (showToast) { toast("Engines, models, projects and harnesses reloaded."); }
+      await loadBackendSessions();
+      setConnection("connected", "connected");
+      updateTopbar();
+      renderLeft();
+      renderChat();
+      renderTab();
+      renderContext();
+      if (showToast) { toast("Providers, models, projects, harnesses and sessions reloaded."); }
+      log("info", "connected to DStudio at " + window.location.origin);
     } catch (e) {
-      setConnection("offline", "error");
-      $("sendStatus").textContent = e.message;
+      setConnection("disconnected", "error");
+      log("error", "Configuration load failed: " + e.message);
       toast(e.message, true);
     }
   }
 
   async function boot() {
-    applyTheme();
+    applyTheme("btn-theme");
     loadStore();
+    if (window.DStudioTasks) {
+      window.DStudioTasks.boot({ $, esc, toast, log, json, projects, harnesses });
+    }
+    const conversation = current();
+    if (conversation) { state.context = { type: "session", item: conversation }; }
     wire();
-    renderConversations();
+    renderLeft();
     renderChat();
+    renderTab();
+    updateTopbar();
+    renderContext();
     await bootData(false);
+    // Select the newest backend session once the list has loaded; drafts stay on top.
+    if (!current() && state.conversations.length) {
+      state.currentId = state.conversations[0].id;
+      selectConversation(state.currentId);
+    } else if (current() && current().backend && current().messages === null) {
+      loadBackendMessages(current());
+    }
   }
 
   boot();
