@@ -22,6 +22,7 @@
         <module>targetplatform/eu.kalafatic.dstudio.target</module>
         <module>plugins/eu.kalafatic.dstudio.core</module>
         <module>plugins/eu.kalafatic.dstudio.infrastructure</module>
+        <module>plugins/org.slf4j.nop</module>
         <module>plugins/eu.kalafatic.dstudio.harness</module>
         <module>plugins/eu.kalafatic.dstudio.teip</module>
         <module>plugins/eu.kalafatic.dstudio.application</module>

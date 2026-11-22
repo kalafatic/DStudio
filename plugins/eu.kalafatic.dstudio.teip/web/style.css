@@ -114,16 +114,29 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   width: 280px; flex: none; display: flex; flex-direction: column;
   min-height: 0; background: var(--panel); border-right: 1px solid var(--border);
 }
-#left-nav { display: flex; border-bottom: 1px solid var(--border); flex: none; }
+#left-nav { display: flex; flex-direction: column; border-bottom: 1px solid var(--border);
+  flex: none; padding: 4px 0; }
+.nav-group-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: .8px;
+  color: var(--faint); font-weight: 600; padding: 6px 12px 2px; }
+.nav-group { display: flex; }
 .nav-btn {
   flex: 1; background: transparent; border: none;
   border-bottom: 2px solid transparent; border-radius: 0; color: var(--faint);
-  padding: 8px 4px; font-size: 12px; cursor: pointer; font-family: var(--sans);
+  padding: 7px 4px; font-size: 12px; cursor: pointer; font-family: var(--sans);
 }
 .nav-btn:hover { color: var(--text); background: transparent;
   border-color: transparent; }
 .nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
 #left-content { flex: 1; overflow-y: auto; min-height: 0; }
+.build-badge { font-family: var(--mono); font-size: 10px; color: var(--faint);
+  border: 1px solid var(--border); border-radius: 8px; padding: 1px 7px;
+  white-space: nowrap; }
+#statusbar { display: flex; align-items: center; gap: 16px; height: 24px;
+  flex: none; padding: 0 12px; background: var(--panel);
+  border-top: 1px solid var(--border); font-size: 11px; }
+.sb-item { font-family: var(--mono); color: var(--muted); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+#sb-status { color: var(--ok); }
 
 #work-area { flex: 1; display: flex; flex-direction: column; min-width: 0;
   background: var(--bg); }
@@ -226,10 +239,55 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 .msg .text code.md-inline { font-family: var(--mono); font-size: 11.5px;
   background: var(--panel2); border: 1px solid var(--border); border-radius: 4px;
   padding: 0 4px; }
-.msg .text pre { margin: 0 0 8px; background: var(--bg); border: 1px solid var(--border);
-  border-radius: 6px; padding: 9px 11px; overflow-x: auto; }
+.msg .text pre { margin: 0 0 8px; background: var(--code); border: 1px solid var(--border);
+  border-radius: 0 0 6px 6px; padding: 9px 11px; overflow-x: auto; }
 .msg .text pre code.md-code { font-family: var(--mono); font-size: 11.5px;
   white-space: pre; border: none; background: none; padding: 0; }
+/* message header row: role, time and copy action */
+.msg-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.msg .who { font-size: 10px; text-transform: uppercase; letter-spacing: .7px;
+  color: var(--faint); }
+.msg.user .who { color: var(--accent); }
+.msg-time { font-family: var(--mono); font-size: 10px; color: var(--faint); }
+.msg-action { padding: 1px 7px; font-size: 10px; border-radius: 8px;
+  color: var(--faint); background: transparent; border: 1px solid var(--border);
+  cursor: pointer; }
+.msg-action:hover { color: var(--accent); border-color: var(--accent); }
+/* code block header with language + copy control */
+.md-code-head { display: flex; align-items: center; justify-content: space-between;
+  margin: 0 0 0; background: var(--panel2); border: 1px solid var(--border);
+  border-bottom: none; border-radius: 6px 6px 0 0; padding: 3px 8px;
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+  text-transform: lowercase; }
+.md-copy { padding: 1px 8px; font-size: 10px; border-radius: 8px;
+  color: var(--muted); background: transparent; border: 1px solid var(--border);
+  cursor: pointer; font-family: var(--sans); }
+.md-copy:hover { color: var(--accent); border-color: var(--accent); }
+/* syntax highlighting (highlightCode in common.js) */
+.syn-kw { color: var(--accent2); }
+.syn-str { color: var(--ok); }
+.syn-com { color: var(--faint); font-style: italic; }
+.syn-num { color: var(--warn); }
+.syn-fn { color: var(--info); }
+.syn-type { color: var(--accent); }
+/* sessions filter */
+.list-search { width: calc(100% - 20px); margin: 8px 10px; padding: 5px 8px;
+  font-size: 12px; border-radius: 4px; }
+/* project file browser (right context panel) */
+.ctx-files { margin-top: 10px; }
+.ctx-files-head { display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; }
+.file-row { display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 2px 0; cursor: pointer; }
+.file-row:hover .file-name { color: var(--accent); }
+.file-name { font-family: var(--mono); font-size: 11px; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-name.dir { color: var(--text); }
+.file-preview { font-family: var(--mono); font-size: 10.5px; line-height: 1.5;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 5px;
+  padding: 8px 10px; margin-top: 6px; max-height: 300px; overflow: auto;
+  white-space: pre-wrap; word-break: break-all; }
+
 #composer { border-top: 1px solid var(--border); background: var(--panel);
   padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; flex: none; }
 #composer textarea { width: 100%; min-height: 54px; }

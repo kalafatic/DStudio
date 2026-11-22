@@ -16,7 +16,9 @@
       startupProgressRect="20,270,460,6"
       startupMessageRect="20,290,460,8"
       startupForegroundColor="AA8CF0" />
-   <plugins/>
+   <plugins>
+      <plugin id="org.eclipse.ui.themes"/>
+   </plugins>
    <features>
       <feature id="eu.kalafatic.dstudio.feature"/>
       <feature id="org.eclipse.platform"/>
@@ -32,10 +34,14 @@
       <plugin id="org.eclipse.equinox.common" autoStart="true" startLevel="2" />
       <plugin id="org.eclipse.equinox.event" autoStart="true" startLevel="2" />
       <plugin id="org.eclipse.equinox.simpleconfigurator" autoStart="true" startLevel="1" />
+      <plugin id="org.eclipse.equinox.p2.ui.sdk" autoStart="true" startLevel="4" />
       <plugin id="eu.kalafatic.dstudio.infrastructure" autoStart="true" startLevel="3" />
       <plugin id="eu.kalafatic.dstudio.application" autoStart="true" startLevel="4" />
       <plugin id="eu.kalafatic.dstudio.ui" autoStart="true" startLevel="4" />
    </configurations>
    <preferencesInfo><targetPlatform>JavaSE-21</targetPlatform></preferencesInfo>
    <cssInfo/>
+   <properties>
+      <property name="cssTheme" value="org.eclipse.e4.ui.css.theme.e4_dark"/>
+   </properties>
 </product>

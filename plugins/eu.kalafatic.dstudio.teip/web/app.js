@@ -6,7 +6,8 @@
 
   const { $, detect, providers, models, allModels, projects, harnesses, json, sse,
           askToken, token, setToken, esc, formatBytes, fillSelect, toast,
-          applyTheme, renderMarkdown } = window.Inference;
+          applyTheme, renderMarkdown, copyToClipboard, wireCodeCopy,
+          FRONTEND_BUILD } = window.Inference;
 
   const STORE_KEY = "dstudio.conversations.v1";
 
@@ -23,12 +24,16 @@
     allHarnesses: [],
     conversations: [],
     currentId: null,
+    sessionFilter: "",
     context: { type: "", item: null },
     busy: false,
     stream: null,
     tabOpen: true,
     consoleEntries: [],
-    consoleAutoscroll: true
+    consoleAutoscroll: true,
+    eventStream: null,
+    lastEventId: 0,
+    filesPath: ""
   };
 
   // ---------------- persistence / conversations ----------------
@@ -120,6 +125,20 @@
     const el = $("connection-status");
     el.className = "conn conn-" + kind;
     el.textContent = "\u25CF " + text;
+    const sb = $("sb-status");
+    if (sb) { sb.textContent = state.connected ? "connected" : text; }
+  }
+
+  function updateStatusbar() {
+    const engine = state.allProviders.find((p) => p.id === state.providerId);
+    const model = state.allModels.find((m) => m.id === state.modelId);
+    if ($("sb-engine")) {
+      $("sb-engine").textContent = "engine " + (engine ? engine.name : "—");
+    }
+    if ($("sb-model")) {
+      $("sb-model").textContent = "model " + (model ? model.name : "—");
+    }
+    if ($("sb-build")) { $("sb-build").textContent = FRONTEND_BUILD; }
   }
 
   // ---------------- console / events / problems ----------------
@@ -163,6 +182,34 @@
     const pane = $("panel-problems");
     pane.appendChild(node);
     if (state.consoleAutoscroll) { pane.scrollTop = pane.scrollHeight; }
+  }
+
+  // ---------------- live event stream (shared backend event bus) ----------------
+
+  function startEventStream() {
+    if (state.eventStream || !state.connected) { return; }
+    state.eventStream = true;
+    const connect = async () => {
+      try {
+        await sse("/api/events?afterSequence=" + state.lastEventId,
+            { method: "GET" }, (type, data) => {
+              if (data && data.__id) {
+                const seq = Number(data.__id);
+                if (!isNaN(seq)) {
+                  if (seq <= state.lastEventId) { return; }
+                  state.lastEventId = seq;
+                }
+              }
+              const kind = type || (data && data.type) || "event";
+              const message = (data && data.message != null) ? String(data.message)
+                  : (data && data.type ? String(data.type) : "");
+              event(kind + (message ? " " + message : ""));
+            });
+      } catch (e) { /* connection lost — reconnect below */ }
+      state.eventStream = false;
+      if (state.connected) { setTimeout(startEventStream, 3000); }
+    };
+    connect();
   }
 
   // ---------------- selects / data ----------------
@@ -245,6 +292,7 @@
       model ? model.name : "",
       model && model.sizeBytes ? formatBytes(model.sizeBytes) : ""]
         .filter(Boolean).join(" · ");
+    updateStatusbar();
   }
 
   function renderTab() {
@@ -282,8 +330,7 @@
     } else if (state.context.type === "project") {
       add("Name", item.name);
       add("Root", item.rootPath);
-    } else if (state.context.type === "engine") {
-      add("Name", item.name);
+    } else if (state.context.type === "engine") {      add("Name", item.name);
       add("Type", item.type);
       add("Status", item.status);
       add("Endpoint", item.endpoint);
@@ -301,6 +348,101 @@
     }
     box.innerHTML = "<div class=\"ctx-title\">" + esc(item.name || item.title
         || state.context.type) + "</div>" + rows.join("");
+    if (state.context.type === "project") { renderProjectFiles(box, item); }
+  }
+
+  /**
+   * Real project file browser (GET /api/workspace/files — server-contained path
+   * resolution). Directory browsing, file preview and "Use in prompt" (inserts
+   * the file path plus its content so the model actually receives it).
+   */
+  async function renderProjectFiles(box, project) {
+    const section = document.createElement("div");
+    section.className = "ctx-files";
+    const head = document.createElement("div");
+    head.className = "ctx-files-head";
+    const label = document.createElement("span");
+    label.className = "ctx-sub";
+    label.textContent = "Project files" + (state.filesPath ? " · " + state.filesPath : "");
+    head.appendChild(label);
+    const up = document.createElement("button");
+    up.className = "btn btn-small";
+    up.textContent = "root";
+    up.title = "Back to the project root";
+    up.onclick = () => { state.filesPath = ""; renderProjectFiles(box, project); };
+    head.appendChild(up);
+    section.appendChild(head);
+    box.appendChild(section);
+    const loading = document.createElement("div");
+    loading.className = "empty-note";
+    loading.textContent = "loading…";
+    section.appendChild(loading);
+    try {
+      const body = await json("/api/workspace/files?project="
+          + encodeURIComponent(project.id)
+          + "&path=" + encodeURIComponent(state.filesPath || ""));
+      section.innerHTML = "";
+      section.appendChild(head);
+      if (body.directory === true) {
+        const children = Array.isArray(body.children) ? body.children : [];
+        if (!children.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty-note";
+          empty.textContent = "empty directory";
+          section.appendChild(empty);
+        }
+        for (const child of children) {
+          const line = document.createElement("div");
+          line.className = "file-row";
+          const name = document.createElement("span");
+          name.className = "file-name" + (child.directory ? " dir" : "");
+          name.textContent = (child.directory ? "▸ " : "· ") + child.name;
+          name.title = child.path || child.name;
+          line.appendChild(name);
+          const action = document.createElement("button");
+          action.className = "btn btn-small";
+          action.textContent = child.directory ? "open" : "preview";
+          action.onclick = (event) => {
+            event.stopPropagation();
+            state.filesPath = child.path || child.name;
+            renderProjectFiles(box, project);
+          };
+          line.onclick = () => action.click();
+          line.appendChild(action);
+          section.appendChild(line);
+        }
+      } else if (body.content != null) {
+        const meta = document.createElement("div");
+        meta.className = "ctx-sub";
+        meta.textContent = "File: " + (body.path || "");
+        section.appendChild(meta);
+        const insert = document.createElement("button");
+        insert.className = "btn btn-small";
+        insert.textContent = "Use in prompt";
+        insert.title = "Insert the file path and content into the prompt";
+        insert.onclick = () => {
+          const path = body.path || "";
+          const content = String(body.content || "");
+          const input = $("promptInput");
+          input.value = (input.value ? input.value.replace(/\s+$/, "") + "\n" : "")
+              + "File: " + path + "\n```\n" + content.slice(0, 30000) + "\n```\n";
+          input.focus();
+          toast("File " + path + " added to the prompt.");
+        };
+        section.appendChild(insert);
+        const pre = document.createElement("pre");
+        pre.className = "file-preview";
+        pre.textContent = String(body.content).slice(0, 20000);
+        section.appendChild(pre);
+      }
+    } catch (e) {
+      section.innerHTML = "";
+      section.appendChild(head);
+      const error = document.createElement("div");
+      error.className = "empty-note";
+      error.textContent = "Files unavailable: " + e.message;
+      section.appendChild(error);
+    }
   }
 
   // ---------------- render: left views ----------------
@@ -357,17 +499,33 @@
       head.appendChild(label);
       head.appendChild(add);
       content.appendChild(head);
+      const search = document.createElement("input");
+      search.type = "search";
+      search.className = "list-search";
+      search.placeholder = "Filter sessions…";
+      search.value = state.sessionFilter || "";
+      search.oninput = () => { state.sessionFilter = search.value; renderLeft(); };
+      content.appendChild(search);
       const list = document.createElement("div");
       list.className = "item-list";
       content.appendChild(list);
+      const filter = (state.sessionFilter || "").toLowerCase();
+      const visible = state.conversations.filter((conversation) =>
+          !filter || (conversation.title || "").toLowerCase().includes(filter));
       if (!state.conversations.length) {
         const empty = document.createElement("div");
         empty.className = "empty-note";
         empty.style.padding = "10px";
         empty.textContent = "No conversations yet.";
         list.appendChild(empty);
+      } else if (!visible.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty-note";
+        empty.style.padding = "10px";
+        empty.textContent = "No sessions match the filter.";
+        list.appendChild(empty);
       }
-      for (const conversation of state.conversations.slice().sort((a, b) =>
+      for (const conversation of visible.slice().sort((a, b) =>
           (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || ""))) {
         const count = conversation.messages === null ? "·" : conversation.messages.length;
         const row = item(list, conversation.title || "New conversation",
@@ -375,6 +533,29 @@
             + (conversation.backend ? " · server" : ""),
             () => selectConversation(conversation.id));
         if (conversation.id === state.currentId) { row.classList.add("active"); }
+        const rename = document.createElement("button");
+        rename.className = "btn btn-small";
+        rename.textContent = "✎";
+        rename.title = "Rename session";
+        rename.onclick = async (event) => {
+          event.stopPropagation();
+          const value = await window.Inference.askText("Rename session",
+              "session title", conversation.title || "", false);
+          if (value === null || !value) { return; }
+          conversation.title = value;
+          if (conversation.backend && conversation.studioSessionId) {
+            try {
+              await json("/api/inference/sessions/"
+                  + encodeURIComponent(conversation.studioSessionId) + "/rename",
+                  { method: "POST", body: { title: value } });
+            } catch (e) {
+              toast("Rename failed: " + e.message, true);
+            }
+          }
+          persist();
+          renderLeft();
+          renderTab();
+        };
         const del = document.createElement("button");
         del.className = "btn btn-small";
         del.textContent = "\u00D7";
@@ -386,6 +567,7 @@
         };
         const bar = document.createElement("div");
         bar.className = "item-actions";
+        bar.appendChild(rename);
         bar.appendChild(del);
         row.appendChild(bar);
       }
@@ -415,6 +597,7 @@
       for (const project of state.allProjects) {
         const row = item(list, project.name, project.rootPath, () => {
           state.projectId = project.id;
+          state.filesPath = "";
           state.context = { type: "project", item: project };
           updateTopbar(); renderContext(); renderLeft();
         });
@@ -587,6 +770,7 @@
   function renderChat() {
     const logBox = $("chatLog");
     logBox.innerHTML = "";
+    wireCodeCopy(logBox);
     const conversation = current();
     const messages = conversation ? conversation.messages : [];
     if (!messages.length) {
@@ -607,13 +791,38 @@
     for (const message of messages) {
       const node = document.createElement("div");
       node.className = "msg " + message.role;
-      const who = document.createElement("div");
+      const head = document.createElement("div");
+      head.className = "msg-head";
+      const who = document.createElement("span");
       who.className = "who";
       who.textContent = message.role;
+      head.appendChild(who);
+      if (message.createdAt) {
+        const time = document.createElement("span");
+        time.className = "msg-time";
+        time.textContent = String(message.createdAt).slice(11, 19);
+        head.appendChild(time);
+      }
+      const spacer = document.createElement("span");
+      spacer.className = "spacer";
+      head.appendChild(spacer);
+      if (message.role === "assistant") {
+        const copy = document.createElement("button");
+        copy.className = "msg-action";
+        copy.textContent = "copy";
+        copy.title = "Copy message";
+        copy.onclick = () => {
+          copyToClipboard(message.content || "").then(() => {
+            copy.textContent = "copied";
+            setTimeout(() => { copy.textContent = "copy"; }, 1400);
+          }).catch(() => toast("Clipboard unavailable.", true));
+        };
+        head.appendChild(copy);
+      }
       const text = document.createElement("div");
       text.className = "text";
       text.innerHTML = renderMarkdown(message.content);
-      node.appendChild(who);
+      node.appendChild(head);
       node.appendChild(text);
       logBox.appendChild(node);
     }
@@ -902,6 +1111,7 @@
       await refreshHarnesses();
       await loadBackendSessions();
       setConnection("connected", "connected");
+      startEventStream();
       updateTopbar();
       renderLeft();
       renderChat();
@@ -922,6 +1132,10 @@
     if (window.DStudioTasks) {
       window.DStudioTasks.boot({ $, esc, toast, log, json, projects, harnesses });
     }
+    const build = $("frontend-build");
+    if (build) { build.textContent = FRONTEND_BUILD; }
+    console.log("DStudio frontend build " + FRONTEND_BUILD
+        + " (" + window.location.origin + ")");
     const conversation = current();
     if (conversation) { state.context = { type: "session", item: conversation }; }
     wire();

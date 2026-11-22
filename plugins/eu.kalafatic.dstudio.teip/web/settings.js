@@ -324,6 +324,18 @@
       state.selection.modelId = "";
       loadModelsForProvider(state.selection.providerId);
     };
+    const themeSelect = $("themeSelect");
+    if (themeSelect) {
+      let currentTheme = "dark";
+      try { currentTheme = localStorage.getItem(window.Inference.THEME_KEY) || "dark"; }
+      catch (e) { /* ignore */ }
+      themeSelect.value = currentTheme === "light" ? "light" : "dark";
+      themeSelect.onchange = () => {
+        document.documentElement.dataset.theme = themeSelect.value;
+        try { localStorage.setItem(window.Inference.THEME_KEY, themeSelect.value); }
+        catch (e) { /* ignore */ }
+      };
+    }
     $("modelSelect").onchange = () => {
       state.selection.modelId = $("modelSelect").value;
       const option = $("modelSelect").selectedOptions[0];

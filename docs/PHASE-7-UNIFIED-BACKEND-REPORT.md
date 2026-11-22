@@ -325,3 +325,72 @@ services step by +100 inside each block):
   persisted). DCode's CLI resolves the authoritative port (bound property →
   `-Ddcode.port` override → persisted config → family default) instead of
   hardcoding 58080. Live-verified: conflict → 58081, restart → 58081 reused.
+
+## 16. Addendum 2026-11-22 (c) — Frontend round and RCP runtime fixes
+
+**Web inference workspace (visible upgrade)**
+- Markdown chat output with a dependency-free syntax highlighter (keywords/
+  strings/comments/numbers/functions per language, ~12 languages) and per-code-block
+  and per-message **copy** actions (`common.js renderMarkdown/highlightCode`).
+- Session list: **search filter**, inline **rename** (WebKit-safe modal → real
+  `/api/inference/sessions/{id}/rename`), delete, active-session highlight, server
+  badge, timestamps.
+- Bottom **Events** pane now consumes the live `/api/events` SSE stream (cursor
+  replay + reconnect); Console/Events/Problems stay filterable/exportable.
+- **Project file browser** in the Context panel (real `/api/workspace/files`:
+  directory listing, file preview, "Use in prompt" inserts path+content so the model
+  genuinely receives it). Tasks pane (TEIP executions) shows status, events,
+  changed files and diffs.
+- Settings gains an **Appearance** card (theme select, shared `dstudio.theme.v1`).
+
+**RCP runtime fixes (from the user's launch log)**
+- `Theme 'org.eclipse.e4.ui.css.theme.e4_default' not found` — resolved by adding
+  `org.eclipse.ui.themes` to the product (provides e4_default/e4_dark); the product
+  now requests the `e4_dark` CSS theme (`cssTheme` property) for a professional dark
+  workbench. Verified: message absent from a fresh RCP launch log.
+- `No SLF4J providers were found` — resolved with an OSGi **fragment**
+  (`plugins/org.slf4j.nop`, Fragment-Host `slf4j.api`) carrying the NOP provider —
+  the only mechanism SLF4J 2.x discovery honors in Equinox. Verified: 0 SLF4J lines
+  in headless and RCP runs.
+- `Unable to create menu item … installationDetails` — resolved by auto-starting
+  `org.eclipse.equinox.p2.ui.sdk` (its command contributions register at bundle
+  activation). Verified absent from the fresh RCP log.
+- Felix SCR circular reference (m2e MavenProjectManager/MavenModelManager/
+  WorkspaceStateWriter) — **development environment only**: the product features
+  contain no m2e bundles; the cycle comes from the m2e bundles of the host Eclipse
+  IDE used for PDE launches. No product change required.
+- Workspace recovery message — benign Eclipse workbench-state refresh after
+  non-clean exits; DStudio itself shuts down cleanly (verified: server stop, ports
+  released, 0 exceptions).
+
+## 17. Addendum 2026-11-22 (d) — Unified frontend delivery architecture
+
+**Root cause of the "UI unchanged" report**: the developer launches DStudio/DCode as
+**PDE product launches** from the Eclipse IDE. In that mode the runtime classpath of
+each workspace bundle is its output folder (`dev.properties` → `target/classes`),
+and the `web/` resources were only packaged by Tycho into the product jars — they
+were never copied to the output folder, so the PDE launches could not serve the
+edited frontend (and `mvn clean` had removed the IDE's old copies).
+
+**Fix (single authoritative source, standard delivery mechanism)**:
+- `web/` is now a **build-input source folder** in `build.properties`
+  (`source.web/ = web/`) and `.classpath` for both frontend bundles
+  (`eu.kalafatic.dstudio.teip`, `eu.kalafatic.dcode.server`). The standard JDT/PDE
+  builder copies it into the runtime classpath (workspace launches) and Tycho
+  packages it into the bundle jar (products) — one source, no mode-specific code,
+  no special-case serving paths.
+- No runtime-specific copies or dev-only serving logic exist; the embedded servers
+  keep serving from the bundle classpath only.
+
+**Build-time verification (permanent invariant)**:
+- New `FrontendDeliveryTest` (both products) fails the build when the packaged
+  bundle content differs from the source tree (staleness) or when the frontend
+  build constant drifts from the backend version field.
+- Frontend build identifier `web-20261122-r4`: visible badge in the UI, logged at
+  boot, and exposed via `/api/status` (`frontendVersion`) and DCode
+  `/api/v1/health` (`frontendVersion`).
+
+**Developer workflow**: one edit in `web/` → IDE auto-build copies it to the
+workspace launch classpath; `mvn verify` packages it into the products and the
+delivery test verifies consistency. A project refresh/rebuild in the IDE picks up
+the new source-folder declaration automatically.
