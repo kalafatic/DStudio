@@ -92,11 +92,22 @@ public class EnrInferenceEngineAdapter implements InferenceEngineAdapter {
 
     @Override
     public InferenceConnectionTestResult testConnection() {
+        // Canonical ENR 1.0 health path; /health is a legacy fallback for older
+        // ENR deployments (family convention, mirror of the DCode EnrProvider).
+        try {
+            HttpResponse<String> response = send("GET", "/enr/v1/health", null);
+            if (response.statusCode() == 200) {
+                return InferenceConnectionTestResult.ok("ENR runtime available at "
+                        + endpoint());
+            }
+        } catch (Exception e) {
+            // fall through to the legacy probe
+        }
         try {
             HttpResponse<String> response = send("GET", "/health", null);
             if (response.statusCode() == 200) {
                 return InferenceConnectionTestResult.ok("ENR runtime available at "
-                        + endpoint());
+                        + endpoint() + " (legacy /health)");
             }
             return InferenceConnectionTestResult.error("ENR at " + endpoint()
                     + " returned HTTP " + response.statusCode());
@@ -154,19 +165,34 @@ public class EnrInferenceEngineAdapter implements InferenceEngineAdapter {
                         List.of());
             }
             JsonNode node = mapper.readTree(response.body());
-            JsonNode gpu = node.path("gpu");
+            boolean running = node.path("running").asBoolean(false);
+            boolean ready = node.has("ready") ? node.path("ready").asBoolean(false)
+                    : running;
+            JsonNode cpu = node.path("cpu");
+            JsonNode heap = node.path("heap");
             List<String> engines = new ArrayList<>();
             node.path("activeEngines").forEach(entry -> engines.add(entry.asText()));
-            return new InferenceRuntimeStatus(node.path("ready").asBoolean(true),
-                    node.path("availableProcessors").asInt(0),
-                    node.path("systemLoadAverage").asDouble(0),
-                    node.path("maxHeapMb").asLong(0),
-                    node.path("usedHeapMb").asLong(0),
-                    gpu.path("detected").asBoolean(false),
-                    gpu.path("deviceName").asText(""),
-                    gpu.path("totalVramMb").asLong(0),
-                    gpu.path("usedVramMb").asLong(0),
-                    gpu.path("freeVramMb").asLong(0), engines);
+            boolean gpuDetected = false;
+            String gpuDevice = "";
+            long gpuTotalMb = 0;
+            long gpuUsedMb = 0;
+            long gpuFreeMb = 0;
+            for (JsonNode device : node.path("devices")) {
+                if ("cuda".equals(device.path("type").asText(""))) {
+                    gpuDetected = true;
+                    gpuDevice = device.path("name").asText("");
+                    gpuTotalMb = device.path("totalMemoryBytes").asLong(0) / 1048576;
+                    gpuFreeMb = device.path("freeMemoryBytes").asLong(0) / 1048576;
+                    gpuUsedMb = Math.max(0, gpuTotalMb - gpuFreeMb);
+                    break;
+                }
+            }
+            return new InferenceRuntimeStatus(ready,
+                    cpu.path("processors").asInt(0),
+                    cpu.path("loadAverage").asDouble(0),
+                    heap.path("maxBytes").asLong(0) / 1048576,
+                    heap.path("usedBytes").asLong(0) / 1048576,
+                    gpuDetected, gpuDevice, gpuTotalMb, gpuUsedMb, gpuFreeMb, engines);
         } catch (Exception e) {
             return new InferenceRuntimeStatus(false, 0, 0, 0, 0, false, "", 0, 0, 0,
                     List.of());
@@ -254,30 +280,38 @@ public class EnrInferenceEngineAdapter implements InferenceEngineAdapter {
                     + response.statusCode());
         }
         try (java.util.stream.Stream<String> lines = response.body()) {
-            lines.forEach(line -> {
-                if (cancellationSupplier != null && cancellationSupplier.getAsBoolean()) {
-                    lines.close();
-                    return;
-                }
-                if (line == null || !line.startsWith("data:")) {
-                    return;
-                }
-                try {
-                    JsonNode node = mapper.readTree(line.substring("data:".length()).trim());
-                    String chunk = node.path("chunk").asText("");
-                    boolean done = node.path("done").asBoolean(false);
-                    if (!chunk.isEmpty()) {
-                        chunkConsumer.accept(new InferenceChatChunk(chunk, false,
-                                node.path("engine").asText("")));
+            try {
+                lines.forEach(line -> {
+                    if (cancellationSupplier != null && cancellationSupplier.getAsBoolean()) {
+                        lines.close();
+                        return;
                     }
-                    if (done) {
-                        chunkConsumer.accept(InferenceChatChunk.done(
-                                node.path("engine").asText("")));
+                    if (line == null || !line.startsWith("data:")) {
+                        return;
                     }
-                } catch (Exception ignored) {
-                    // non-data or malformed line: skip
+                    try {
+                        JsonNode node = mapper.readTree(line.substring("data:".length()).trim());
+                        String chunk = node.path("chunk").asText("");
+                        boolean done = node.path("done").asBoolean(false);
+                        if (!chunk.isEmpty()) {
+                            chunkConsumer.accept(new InferenceChatChunk(chunk, false,
+                                    node.path("engine").asText("")));
+                        }
+                        if (done) {
+                            chunkConsumer.accept(InferenceChatChunk.done(
+                                    node.path("engine").asText("")));
+                        }
+                    } catch (Exception ignored) {
+                        // non-data or malformed line: skip
+                    }
+                });
+            } catch (java.io.UncheckedIOException e) {
+                // cancellation closes the body from within the consumer; the
+                // resulting "closed" read failure is the expected abort path
+                if (cancellationSupplier == null || !cancellationSupplier.getAsBoolean()) {
+                    throw e;
                 }
-            });
+            }
         }
     }
 

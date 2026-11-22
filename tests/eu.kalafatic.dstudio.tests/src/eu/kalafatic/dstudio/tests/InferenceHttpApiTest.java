@@ -138,4 +138,24 @@ class InferenceHttpApiTest {
                 + "/unknown", null);
         assertEquals(404, response.statusCode());
     }
+
+    @Test
+    void modelsWithoutEngineParamUsesDefaultEngine() throws Exception {
+        HttpResponse<String> response = send("GET", InferenceHttpHandler.PATH
+                + "/models", null);
+        assertEquals(200, response.statusCode());
+        assertTrue(response.body().contains("\"engine\":\"enr\""),
+                "the default engine id must be reported: " + response.body());
+        assertTrue(response.body().contains("enr:demo:1"));
+    }
+
+    @Test
+    void chatWithoutEngineParamUsesDefaultEngine() throws Exception {
+        HttpResponse<String> response = send("POST", InferenceHttpHandler.PATH + "/chat",
+                "{\"model\":\"demo:1\",\"messages\":[{\"role\":\"user\","
+                        + "\"content\":\"hi\"}]}");
+        assertEquals(200, response.statusCode());
+        assertTrue(response.body().contains("\"engine\":\"enr\""));
+        assertTrue(response.body().contains("fake answer"));
+    }
 }

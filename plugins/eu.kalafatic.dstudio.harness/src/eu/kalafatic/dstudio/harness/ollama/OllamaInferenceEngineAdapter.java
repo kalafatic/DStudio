@@ -224,27 +224,35 @@ public class OllamaInferenceEngineAdapter implements InferenceEngineAdapter {
                     + response.statusCode() + " " + errorBody.toString().trim());
         }
         try (java.util.stream.Stream<String> lines = response.body()) {
-            lines.forEach(line -> {
-                if (cancellationSupplier != null && cancellationSupplier.getAsBoolean()) {
-                    lines.close();
-                    return;
-                }
-                if (line == null || line.isBlank()) {
-                    return;
-                }
-                try {
-                    JsonNode node = mapper.readTree(line);
-                    String chunk = node.path("message").path("content").asText("");
-                    if (!chunk.isEmpty()) {
-                        chunkConsumer.accept(new InferenceChatChunk(chunk, false, "ollama"));
+            try {
+                lines.forEach(line -> {
+                    if (cancellationSupplier != null && cancellationSupplier.getAsBoolean()) {
+                        lines.close();
+                        return;
                     }
-                    if (node.path("done").asBoolean(false)) {
-                        chunkConsumer.accept(InferenceChatChunk.done("ollama"));
+                    if (line == null || line.isBlank()) {
+                        return;
                     }
-                } catch (Exception ignored) {
-                    // malformed line: skip
+                    try {
+                        JsonNode node = mapper.readTree(line);
+                        String chunk = node.path("message").path("content").asText("");
+                        if (!chunk.isEmpty()) {
+                            chunkConsumer.accept(new InferenceChatChunk(chunk, false, "ollama"));
+                        }
+                        if (node.path("done").asBoolean(false)) {
+                            chunkConsumer.accept(InferenceChatChunk.done("ollama"));
+                        }
+                    } catch (Exception ignored) {
+                        // malformed line: skip
+                    }
+                });
+            } catch (java.io.UncheckedIOException e) {
+                // cancellation closes the body from within the consumer; the
+                // resulting "closed" read failure is the expected abort path
+                if (cancellationSupplier == null || !cancellationSupplier.getAsBoolean()) {
+                    throw e;
                 }
-            });
+            }
         }
     }
 

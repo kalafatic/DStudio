@@ -208,6 +208,7 @@ public class DStudioLifecycleCoordinator {
         inferenceEngineRegistry = new DefaultInferenceEngineRegistry(engineStore);
         inferenceEngineRegistry.registerEngine(
                 new eu.kalafatic.dstudio.harness.enr.EnrInferenceEngineAdapter());
+        resolveEnrEndpoint(inferenceEngineRegistry);
         inferenceEngineRegistry.registerEngine(
                 new eu.kalafatic.dstudio.harness.ollama.OllamaInferenceEngineAdapter());
         // Phase 7 (S3): OpenAI-compatible (default endpoint = local Ollama /v1, live-
@@ -272,6 +273,63 @@ public class DStudioLifecycleCoordinator {
                 contextualActionRegistry, harnessRegistry, inferenceEngineRegistry,
                 configurationService, agentProfileRegistry, executionService,
                 inferenceService, projectService);
+    }
+
+    /**
+     * Resolves the ENR inference-engine endpoint against the running family
+     * environment (family convention, mirror of the DCode RuntimeManager):
+     * the {@code dstudio.enr.endpoint} system property always wins; otherwise a
+     * reachable well-known candidate is selected — standalone ENR (8111) or
+     * EVO-embedded ENR (28780). Existing installations keeping the historical
+     * default are migrated when the default is unreachable while a candidate
+     * answers; explicitly configured non-default endpoints are never touched.
+     * The resolved endpoint is persisted through the engine registry so every
+     * consumer (adapter, model management passthrough) follows it.
+     */
+    private void resolveEnrEndpoint(InferenceEngineRegistry registry) {
+        String configured = System.getProperty("dstudio.enr.endpoint");
+        if (configured != null && !configured.isBlank()) {
+            registry.updateConfiguration(
+                    eu.kalafatic.dstudio.harness.enr.EnrInferenceEngineAdapter.ENGINE_ID,
+                    Map.of("endpoint", configured.trim()));
+            return;
+        }
+        String endpoint = registry.getConfiguration(
+                        eu.kalafatic.dstudio.harness.enr.EnrInferenceEngineAdapter.ENGINE_ID)
+                .getOrDefault("endpoint",
+                        eu.kalafatic.dstudio.harness.enr.EnrInferenceEngineAdapter
+                                .DEFAULT_ENDPOINT);
+        if (enrAnswers(endpoint)) {
+            return;
+        }
+        if (!eu.kalafatic.dstudio.harness.enr.EnrInferenceEngineAdapter.DEFAULT_ENDPOINT
+                .equals(endpoint)) {
+            return; // unreachable user-configured endpoint: leave it untouched
+        }
+        for (String candidate : List.of("http://127.0.0.1:8111",
+                "http://127.0.0.1:28780")) {
+            if (candidate.equals(endpoint) || !enrAnswers(candidate)) {
+                continue;
+            }
+            registry.updateConfiguration(
+                    eu.kalafatic.dstudio.harness.enr.EnrInferenceEngineAdapter.ENGINE_ID,
+                    Map.of("endpoint", candidate));
+            return;
+        }
+    }
+
+    private static boolean enrAnswers(String endpoint) {
+        try {
+            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder(
+                            java.net.URI.create(endpoint + "/enr/v1/health"))
+                    .timeout(java.time.Duration.ofSeconds(3)).GET().build();
+            java.net.http.HttpResponse<String> response = java.net.http.HttpClient
+                    .newHttpClient().send(request,
+                            java.net.http.HttpResponse.BodyHandlers.ofString());
+            return response.statusCode() == 200;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private void onApplicationReady() {

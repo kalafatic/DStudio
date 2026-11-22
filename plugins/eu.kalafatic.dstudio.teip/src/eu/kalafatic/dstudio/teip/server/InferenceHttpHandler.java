@@ -109,7 +109,8 @@ public class InferenceHttpHandler implements HttpHandler {
                             model.provider(), "engine", model.engine(), "sizeBytes",
                             model.sizeBytes(), "available", model.available()));
                 }
-                respond(exchange, 200, Map.of("engine", engineId, "models", models));
+                respond(exchange, 200, Map.of("engine", adapter.getEngineId(),
+                        "models", models));
                 return;
             }
             if (rest.startsWith("/engines/")) {
@@ -168,7 +169,7 @@ public class InferenceHttpHandler implements HttpHandler {
                                 body.path("model").asText(""), messages,
                                 body.path("temperature").asDouble(0.7),
                                 body.path("maxTokens").asInt(512)));
-                respond(exchange, 200, Map.of("engine", engineId, "content",
+                respond(exchange, 200, Map.of("engine", adapter.getEngineId(), "content",
                         response.content(), "finishReason", response.finishReason(),
                         "model", response.model(), "durationMs", response.durationMs()));
                 return;
