@@ -13,9 +13,9 @@
    <vm/>
    <splash
       location="eu.kalafatic.dstudio.application"
-      startupProgressRect="20,270,460,6"
-      startupMessageRect="20,290,460,8"
-      startupForegroundColor="AA8CF0" />
+      startupProgressRect="212,348,350,2"
+      startupMessageRect="212,335,350,5"
+      startupForegroundColor="FF0000" />
    <plugins>
       <plugin id="org.eclipse.ui.themes"/>
    </plugins>

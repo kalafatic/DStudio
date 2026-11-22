@@ -326,8 +326,8 @@
     };
     const themeSelect = $("themeSelect");
     if (themeSelect) {
-      let currentTheme = "dark";
-      try { currentTheme = localStorage.getItem(window.Inference.THEME_KEY) || "dark"; }
+      let currentTheme = "light";
+      try { currentTheme = localStorage.getItem(window.Inference.THEME_KEY) || "light"; }
       catch (e) { /* ignore */ }
       themeSelect.value = currentTheme === "light" ? "light" : "dark";
       themeSelect.onchange = () => {

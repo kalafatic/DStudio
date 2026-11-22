@@ -66,8 +66,8 @@ window.Inference = (function () {
 
   /** Applies the persisted theme; when buttonId is given the button becomes the toggle. */
   function applyTheme(buttonId) {
-    let theme = "dark";
-    try { theme = localStorage.getItem(THEME_KEY) || "dark"; } catch (e) { /* ignore */ }
+    let theme = "light";
+    try { theme = localStorage.getItem(THEME_KEY) || "light"; } catch (e) { /* ignore */ }
     document.documentElement.dataset.theme = theme;
     const button = buttonId ? $(buttonId) : null;
     if (!button) { return; }
