@@ -45,6 +45,11 @@ public class TeipHttpHandler implements HttpHandler {
     }
 
     private void authenticate(HttpExchange exchange) {
+        // Current phase policy: loopback clients are always local-trusted (the
+        // embedded browser, the desktop application, CLI and local integrations).
+        if (TeipAuth.isLoopback(exchange.getRemoteAddress().getAddress())) {
+            return;
+        }
         Optional<String> token = TeipAuth.configuredToken();
         if (token.isPresent()) {
             String header = exchange.getRequestHeaders().getFirst("Authorization");
@@ -59,14 +64,9 @@ public class TeipHttpHandler implements HttpHandler {
             }
             return;
         }
-        if (TeipAuth.isDevModeExplicitlyEnabled(devModeConfigured)
-                && TeipAuth.isLoopback(exchange.getRemoteAddress().getAddress())) {
-            return;
-        }
         throw new TeipException(TeipWire.ErrorCode.AUTHENTICATION_FAILED,
-                "TEIP authentication required: configure dstudio.teip.auth.token or "
-                        + "enable explicit dev mode (dstudio.teip.devMode=true) for "
-                        + "loopback-only access", Map.of());
+                "TEIP authentication required for non-loopback access: configure "
+                        + "dstudio.teip.auth.token", Map.of());
     }
 
     private boolean constantTimeEquals(String expected, String presented) {

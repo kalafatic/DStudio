@@ -95,7 +95,7 @@ class SseEventsApiTest {
     }
 
     @Test
-    void unauthenticatedRequestsAreRejectedWhenTokenConfigured() throws Exception {
+    void loopbackSseStaysOpenWhenTokenConfigured() throws Exception {
         System.setProperty("dstudio.teip.auth.token", "sse-secret-token");
         try {
             DStudioServer secured = new DStudioServer("127.0.0.1", 0, null, null, null,
@@ -103,12 +103,11 @@ class SseEventsApiTest {
             secured.start();
             try {
                 int securedPort = secured.getBoundPort();
-                HttpURLConnection denied = rawOpen(securedPort, "/api/events");
-                assertEquals(401, denied.getResponseCode());
-                String body = new String(denied.getErrorStream().readAllBytes(),
-                        StandardCharsets.UTF_8);
-                assertTrue(body.contains("AUTHENTICATION_FAILED"));
-                denied.disconnect();
+                // Current-phase policy: loopback clients are local-trusted.
+                HttpURLConnection open = rawOpen(securedPort, "/api/events");
+                assertEquals(200, open.getResponseCode(),
+                        "loopback SSE must not require the remote token");
+                open.disconnect();
             } finally {
                 secured.stop();
             }

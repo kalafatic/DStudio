@@ -118,11 +118,12 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   flex: none; padding: 4px 0; }
 .nav-group-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: .8px;
   color: var(--faint); font-weight: 600; padding: 6px 12px 2px; }
-.nav-group { display: flex; }
+.nav-group { display: grid; grid-template-columns: 1fr 1fr; }
 .nav-btn {
-  flex: 1; background: transparent; border: none;
+  background: transparent; border: none;
   border-bottom: 2px solid transparent; border-radius: 0; color: var(--faint);
-  padding: 7px 4px; font-size: 12px; cursor: pointer; font-family: var(--sans);
+  padding: 7px 12px; font-size: 12px; cursor: pointer; font-family: var(--sans);
+  text-align: left; white-space: nowrap;
 }
 .nav-btn:hover { color: var(--text); background: transparent;
   border-color: transparent; }

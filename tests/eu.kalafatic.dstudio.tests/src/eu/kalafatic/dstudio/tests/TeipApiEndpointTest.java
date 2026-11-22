@@ -309,7 +309,7 @@ class TeipApiEndpointTest {
     }
 
     @Test
-    void bearerTokenEnforcedWhenConfigured() throws Exception {
+    void loopbackStaysOpenWhenTokenConfigured() throws Exception {
         System.setProperty("dstudio.teip.auth.token", "secret-token-42");
         try {
             DStudioConfiguration configuration = new DStudioConfiguration(
@@ -330,18 +330,16 @@ class TeipApiEndpointTest {
                 field.setAccessible(true);
                 var httpServer = (com.sun.net.httpserver.HttpServer) field.get(tokenServer);
                 int tokenPort = httpServer.getAddress().getPort();
+                // Current-phase policy: loopback clients are local-trusted; the
+                // configured token only gates non-loopback access.
                 HttpResponse<String> noAuth = sendOn("GET", tokenPort, "/teip/v1/health",
                         null, Map.of());
-                assertEquals(401, noAuth.statusCode());
-                assertEquals("AUTHENTICATION_FAILED",
-                        mapper.readTree(noAuth.body()).get("code").asText());
-                HttpResponse<String> wrong = sendOn("GET", tokenPort, "/teip/v1/health",
-                        null, Map.of("Authorization", "Bearer wrong"));
-                assertEquals(401, wrong.statusCode());
+                assertEquals(200, noAuth.statusCode(),
+                        "loopback TEIP must not require the remote token");
+                assertEquals("UP", mapper.readTree(noAuth.body()).get("status").asText());
                 HttpResponse<String> right = sendOn("GET", tokenPort, "/teip/v1/health",
                         null, Map.of("Authorization", "Bearer secret-token-42"));
                 assertEquals(200, right.statusCode());
-                assertEquals("UP", mapper.readTree(right.body()).get("status").asText());
             } finally {
                 tokenServer.stop();
             }

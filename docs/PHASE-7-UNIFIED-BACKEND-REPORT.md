@@ -394,3 +394,75 @@ edited frontend (and `mvn clean` had removed the IDE's old copies).
 workspace launch classpath; `mvn verify` packages it into the products and the
 delivery test verifies consistency. A project refresh/rebuild in the IDE picks up
 the new source-folder declaration automatically.
+
+## 18. Addendum 2026-11-22 (e) — Eclipse Run/Debug finalization
+
+- **Serving mechanism unified on the OSGi bundle API**: `WebAssetsHandler` now
+  resolves `web/…` through `Bundle.getEntry` (the same mechanism DCode's
+  `StaticContent.BundleEntry` already used). Packaged products read the jar
+  entries; PDE workspace launches read the same logical paths from the
+  directory-installed bundle — one source, one mechanism, zero dependency on
+  output folders or builder state. The earlier `source.web/ = web/` experiment was
+  reverted (JDT would have flattened `web/index.html` to `index.html` in the
+  output folder — the exact hazard to avoid).
+- **Diagnostics**: `/api/status` now reports `frontendVersion`,
+  `resourceSource: "osgi-bundle"` and `executionMode: "pde"|"product"`
+  (diagnostic only; never selects a serving path). DCode mirrors this in
+  `/api/v1/health`.
+- **Shared launch configuration** committed at
+  `features/eu.kalafatic.dstudio.feature/DStudio_RCP_Application.launch`
+  (product `eu.kalafatic.dstudio.application.product`, workspace bundles selected,
+  JavaSE-21, PDE RuntimeWorkbench type) — used identically for Run As and
+  Debug As after a workspace refresh.
+- **FrontendDeliveryTest extended**: `directoryBundleExposesTheSameLogicalWebPaths`
+  installs a directory bundle (the PDE layout) and proves the same `web/…` entry
+  API and paths work with unmodified content.
+- **Live JDWP (debugger) verification** against the real runtime (the same
+  mechanism Eclipse Debug As uses): breakpoints hit in
+  `DStudioServer.start` (server init, full lifecycle stack), `WebAssetsHandler.handle`
+  (frontend delivery, thread `dstudio-http`) and `DefaultInferenceService.run`
+  (inference; stack `run ← sendMessage`, typed locals `sessionId/content/chunkConsumer`);
+  thrown `InferenceException` observed at throw time with its catch location;
+  threads/variables/stacks inspected; the server served 200 after resume; shutdown
+  released both ports.
+
+## 19. Addendum 2026-11-22 (f) — Local no-auth policy and navigation fix
+
+**Cause of the 401s in Eclipse-launched instances**: the teip auth gate
+(`ApiAuth.authenticate` + `TeipHttpHandler.authenticate`) required either a
+configured bearer token or explicit `teip.devMode=true` even for loopback
+requests. PDE-launched desktop instances had neither, so the embedded SWT
+Browser's API calls received 401 and the UI showed "offline".
+
+**Policy now (current development phase, no authentication)**:
+- **Loopback clients are always local-trusted** — the embedded SWT Browser, the
+  desktop application, CLI tools and local integrations require no token, no
+  session, no cookie and no dev-mode flag. Works identically in PDE Run, PDE
+  Debug and packaged RCP products without any manually supplied properties.
+- Non-loopback clients keep the pre-existing optional bearer-token gate
+  (`dstudio.teip.auth.token` / `DSTUDIO_TEIP_AUTH_TOKEN`); without a token remote
+  access is rejected as before. No new security mechanism was introduced.
+- DCode already behaved this way (`DCodeApi.isAuthorized` is open when no token
+  is configured) — verified, unchanged.
+- Tests updated to the new contract: `LocalLoopbackAuthTest` (loopback API/SSE/
+  workspace/TEIP reachable without token and regardless of a configured token);
+  the former "loopback requires token" assertions in
+  `InferenceSessionApiTest`, `TeipApiEndpointTest`, `SseEventsApiTest` and
+  `WebIdeWorkspaceApiTest` were flipped to the new policy.
+
+**Navigation fix**: the grouped nav uses a 2-column grid
+(`.nav-group { display: grid; grid-template-columns: 1fr 1fr; }`) so the MANAGE
+group labels no longer clip at 280 px panel width (both products).
+
+**Runtime verification (real RCP product, no token, no devMode)**:
+- DStudio RCP: `[DStudio] Server listening on 127.0.0.1:48086`; log
+  "web IDE title: DStudio — Inference" + "web IDE page loaded"; loopback
+  `/api/status` 200 (`executionMode:"product"`, `frontendVersion`),
+  `/api/inference/engines` 200, `/teip/v1/health` 200 **without any credential**;
+  four live TCP connections from the RCP's WebKit network process (SPA API calls
+  + the `/api/events` SSE stream) prove the embedded browser is connected.
+- DCode RCP: embedded server RUNNING on 58080, "Web Browser created (WebKit)",
+  `/api/v1/health` 200 without credentials; the served `css/app.css` contains the
+  grid nav fix.
+- Screenshots captured: `/tmp/opencode/ui/dstudio-noauth.png`,
+  `/tmp/opencode/ui/dcode-noauth.png`.

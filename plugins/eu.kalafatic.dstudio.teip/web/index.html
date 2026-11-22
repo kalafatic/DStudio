@@ -19,6 +19,7 @@
     <span id="top-model" class="top-item">no model</span>
   </div>
   <div class="topbar-right">
+    <span id="frontend-build" class="build-badge" title="Frontend revision">web r4</span>
     <span id="connection-status" class="conn conn-disconnected" title="Backend connection">&#9679; offline</span>
     <button id="btn-conn" class="btn btn-small" title="Connection diagnostics">connection</button>
     <button id="btn-auth" class="btn btn-small" title="Set server bearer token">auth</button>
@@ -31,12 +32,18 @@
 <div id="main">
   <aside id="left-panel">
     <nav id="left-nav">
-      <button class="nav-btn active" data-view="inference">Inference</button>
-      <button class="nav-btn" data-view="sessions">Sessions</button>
-      <button class="nav-btn" data-view="tasks">Tasks</button>
-      <button class="nav-btn" data-view="engines">Engines</button>
-      <button class="nav-btn" data-view="models">Models</button>
-      <button class="nav-btn" data-view="harnesses">Harnesses</button>
+      <div class="nav-group-label">Workspace</div>
+      <div class="nav-group">
+        <button class="nav-btn active" data-view="inference">Inference</button>
+        <button class="nav-btn" data-view="tasks">Tasks</button>
+      </div>
+      <div class="nav-group-label">Manage</div>
+      <div class="nav-group">
+        <button class="nav-btn" data-view="sessions">Sessions</button>
+        <button class="nav-btn" data-view="engines">Engines</button>
+        <button class="nav-btn" data-view="models">Models</button>
+        <button class="nav-btn" data-view="harnesses">Harnesses</button>
+      </div>
     </nav>
     <div id="left-content"></div>
   </aside>
@@ -113,6 +120,14 @@
     <div id="panel-events" class="bottom-pane"></div>
     <div id="panel-problems" class="bottom-pane"></div>
   </div>
+</footer>
+
+<footer id="statusbar">
+  <span id="sb-engine" class="sb-item">engine —</span>
+  <span id="sb-model" class="sb-item">model —</span>
+  <span class="spacer"></span>
+  <span id="sb-status" class="sb-item">offline</span>
+  <span id="sb-build" class="sb-item">web r4</span>
 </footer>
 
 <div id="toast" class="toast" hidden></div>

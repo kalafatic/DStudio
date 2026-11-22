@@ -194,7 +194,7 @@ class InferenceSessionApiTest {
     }
 
     @Test
-    void apiRequiresTokenWhenConfigured() throws Exception {
+    void loopbackApiStaysOpenWhenTokenConfigured() throws Exception {
         System.setProperty("dstudio.teip.auth.token", "session-secret-token");
         try {
             DStudioServer secured = new DStudioServer("127.0.0.1", 0, null, null, registry,
@@ -206,10 +206,11 @@ class InferenceSessionApiTest {
                         .uri(URI.create("http://127.0.0.1:" + securedPort
                                 + InferenceHttpHandler.PATH + "/sessions"))
                         .GET().build();
-                HttpResponse<String> denied = HttpClient.newHttpClient().send(noAuth,
+                // Current-phase policy: loopback clients are local-trusted.
+                HttpResponse<String> loopback = HttpClient.newHttpClient().send(noAuth,
                         HttpResponse.BodyHandlers.ofString());
-                assertEquals(401, denied.statusCode());
-                assertTrue(denied.body().contains("AUTHENTICATION_FAILED"));
+                assertEquals(200, loopback.statusCode(),
+                        "loopback session API must not require the remote token");
 
                 HttpRequest withToken = HttpRequest.newBuilder()
                         .uri(URI.create("http://127.0.0.1:" + securedPort

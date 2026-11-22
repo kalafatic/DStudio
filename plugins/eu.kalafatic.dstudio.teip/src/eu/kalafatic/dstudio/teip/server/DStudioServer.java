@@ -29,6 +29,9 @@ import java.util.Optional;
 public class DStudioServer {
 
     public static final String STATUS_PATH = "/api/status";
+    /** Frontend revision the web UI reports; must match web/common.js
+     *  FRONTEND_BUILD (asserted by FrontendDeliveryTest). */
+    public static final String FRONTEND_VERSION = "web-20261122-r4";
     public static final String DIAGNOSTICS_PATH = "/api/diagnostics";
     public static final String INFERENCE_PATH = InferenceHttpHandler.PATH;
     public static final String EVENTS_PATH = EventsSseHandler.PATH;
@@ -116,6 +119,10 @@ public class DStudioServer {
                 body.put("application", "DSTUDIO");
                 body.put("version", eu.kalafatic.dstudio.core.config.DStudioConfiguration.APP_VERSION);
                 body.put("status", "UP");
+                body.put("frontendVersion", FRONTEND_VERSION);
+                // Diagnostic only — never selects a serving path or implementation.
+                body.put("resourceSource", "osgi-bundle");
+                body.put("executionMode", executionMode());
                 body.put("ready", true);
                 body.put("timestamp", Instant.now().toString());
                 respond(exchange, 200, body);
@@ -226,8 +233,12 @@ public class DStudioServer {
     }
 
     /** Shared API authentication; writes the 401 envelope and returns false when denied. */
-    private boolean authenticate(com.sun.net.httpserver.HttpExchange exchange)
-            throws IOException {
+    /** Diagnostic only: the Eclipse PDE launcher sets this JVM property. */
+    private static String executionMode() {
+        return System.getProperty("eclipse.pde.launch") != null ? "pde" : "product";
+    }
+
+    private boolean authenticate(com.sun.net.httpserver.HttpExchange exchange)            throws IOException {
         try {
             ApiAuth.authenticate(exchange, devModeConfigured);
             return true;

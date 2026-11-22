@@ -34,8 +34,11 @@ public class WebAssetsHandler implements HttpHandler {
                 path = "/index.html";
             }
         }
-        String resource = "/web" + path;
-        InputStream in = getClass().getResourceAsStream(resource);
+        while (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        String resource = "web/" + path;
+        InputStream in = openBundleResource(resource);
         if (in == null) {
             byte[] notFound = "Not found".getBytes(java.nio.charset.StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=utf-8");
@@ -61,5 +64,27 @@ public class WebAssetsHandler implements HttpHandler {
             out.write(payload);
         }
         exchange.close();
+    }
+
+    /**
+     * Single resolution mechanism for every execution mode: the OSGi bundle entry
+     * API. In packaged products the bundle is a jar ({@code web/…} entries); in a
+     * PDE workspace launch the bundle is directory-installed at the project
+     * location, where {@code getEntry} exposes the same logical {@code web/…}
+     * paths from the authoritative source tree. One source, one mechanism, no
+     * output-folder or builder dependency.
+     */
+    private InputStream openBundleResource(String resource) {
+        try {
+            org.osgi.framework.Bundle bundle = org.osgi.framework.FrameworkUtil
+                    .getBundle(WebAssetsHandler.class);
+            if (bundle == null) {
+                return null;
+            }
+            java.net.URL url = bundle.getEntry(resource);
+            return url == null ? null : url.openStream();
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

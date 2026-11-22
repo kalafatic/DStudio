@@ -1,13 +1,13 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <?artifactRepository version='1.1.0'?>
 <artifacts size='1'>
-  <artifact classifier='osgi.bundle' id='eu.kalafatic.dstudio.ui' version='2.6.11.202611221004'>
+  <artifact classifier='osgi.bundle' id='eu.kalafatic.dstudio.ui' version='2.6.11.202611221226'>
     <properties size='9'>
-      <property name='artifact.size' value='199895'/>
-      <property name='download.size' value='199895'/>
-      <property name='download.checksum.sha-512' value='42802ea7517fbe4b5a2b7214050c588eee7f75327c42ad1611d1b418589c7dd1fb4a7bcfc0e2249f6376d1527980dea7591caa359391051ce06f3a802d6282f5'/>
-      <property name='download.checksum.sha-1' value='0ab213fbf012e9ca4ca3fc1cc7a29849b3f2964b'/>
-      <property name='download.checksum.sha-256' value='1901f007320a8e9ca1ccac68b6f564ac7069c1712a618113bb46864c881bc9ba'/>
+      <property name='artifact.size' value='199894'/>
+      <property name='download.size' value='199894'/>
+      <property name='download.checksum.sha-512' value='b65c1269fcf171a91aaf2685e9122fb32656abff193cb5a27ebf0d5f5d87dbf1ec3ff3a575b3e2d38ddaec8fab7ec053ec75add2ef027afd6c2d5c6413108445'/>
+      <property name='download.checksum.sha-1' value='d9f79fefae184bd55e40d4833694891e1435202d'/>
+      <property name='download.checksum.sha-256' value='315f2725600af8b738c135dd2b13ec2fa59147004d94209f0d044d2ad7e5ef66'/>
       <property name='maven-groupId' value='eu.kalafatic.dstudio'/>
       <property name='maven-artifactId' value='eu.kalafatic.dstudio.ui'/>
       <property name='maven-version' value='2.6.11-SNAPSHOT'/>

@@ -7,10 +7,14 @@ import java.security.MessageDigest;
 import java.util.Optional;
 
 /**
- * Authentication for the DStudio management API surface ({@code /api/*}). Uses the same
- * bearer token as the TEIP surface ({@code dstudio.teip.auth.token} /
- * {@code DSTUDIO_TEIP_AUTH_TOKEN}) with the same explicit dev-mode loopback opt-out, so
- * authorization is consistent across every HTTP endpoint of the backend.
+ * Authentication for the DStudio management API surface ({@code /api/*}).
+ *
+ * <p>Current phase policy: <b>loopback clients are always local-trusted</b> — the
+ * embedded SWT Browser, the desktop application, CLI tools and local integrations
+ * never require a token, a session or dev mode. Only non-loopback (network) clients
+ * keep the optional bearer-token requirement ({@code dstudio.teip.auth.token} /
+ * {@code DSTUDIO_TEIP_AUTH_TOKEN}); without a configured token remote access is
+ * rejected exactly as before.</p>
  */
 public final class ApiAuth {
 
@@ -21,6 +25,10 @@ public final class ApiAuth {
 
     /** Throws {@link ApiAuthException} unless the request is authorized. */
     public static void authenticate(HttpExchange exchange, boolean devModeConfigured) {
+        // Local desktop/development workflow: loopback clients are trusted.
+        if (TeipAuth.isLoopback(exchange.getRemoteAddress().getAddress())) {
+            return;
+        }
         Optional<String> token = TeipAuth.configuredToken();
         if (token.isPresent()) {
             String header = exchange.getRequestHeaders().getFirst("Authorization");
@@ -33,13 +41,8 @@ public final class ApiAuth {
             }
             return;
         }
-        if (TeipAuth.isDevModeExplicitlyEnabled(devModeConfigured)
-                && TeipAuth.isLoopback(exchange.getRemoteAddress().getAddress())) {
-            return;
-        }
-        throw new ApiAuthException("API authentication required: configure "
-                + "dstudio.teip.auth.token or enable explicit dev mode "
-                + "(dstudio.teip.devMode=true) for loopback-only access");
+        throw new ApiAuthException("API authentication required for non-loopback "
+                + "access: configure dstudio.teip.auth.token");
     }
 
     private static boolean constantTimeEquals(String expected, String presented) {

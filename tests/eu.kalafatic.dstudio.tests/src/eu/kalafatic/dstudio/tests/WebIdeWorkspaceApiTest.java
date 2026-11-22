@@ -141,8 +141,9 @@ class WebIdeWorkspaceApiTest {
     }
 
     @Test
-    void workspaceApiRequiresTokenWhenConfigured() throws Exception {
-        System.setProperty("dstudio.teip.auth.token", "web-token");
+    void workspaceApiStaysOpenOnLoopbackWhenTokenConfigured() throws Exception {
+        // Current-phase policy: loopback workspace clients are local-trusted.
+        System.setProperty("dstudio.teip.auth.token", "ws-secret-token");
         try {
             DStudioServer secured = new DStudioServer("127.0.0.1", 0, null, null,
                     projectService, null, (exchange) -> exchange.close(), false, null,
@@ -150,14 +151,13 @@ class WebIdeWorkspaceApiTest {
             secured.start();
             try {
                 int securedPort = secured.getBoundPort();
-                HttpRequest noAuth = HttpRequest.newBuilder()
-                        .uri(URI.create("http://127.0.0.1:" + securedPort
-                                + WorkspaceHttpHandler.PATH + "/projects"))
-                        .GET().build();
-                HttpResponse<String> denied = HttpClient.newHttpClient().send(noAuth,
+                HttpResponse<String> response = HttpClient.newHttpClient().send(
+                        HttpRequest.newBuilder().uri(URI.create("http://127.0.0.1:"
+                                + securedPort + WorkspaceHttpHandler.PATH
+                                + "/projects")).GET().build(),
                         HttpResponse.BodyHandlers.ofString());
-                assertEquals(401, denied.statusCode());
-                assertFalse(denied.body().contains("rootPath"));
+                assertEquals(200, response.statusCode(),
+                        "loopback workspace API must not require the remote token");
             } finally {
                 secured.stop();
             }
